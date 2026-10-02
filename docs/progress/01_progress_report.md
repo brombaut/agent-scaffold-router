@@ -40,11 +40,6 @@ evaluation comes after.
   Zen (pay-as-you-go) and Go (subscription) are the model catalogs behind one
   `OPENCODE_API_KEY`. Still unknown: which plan the user's key is on, and whether
   Go includes the GPT models. Child #1 checks this.
-- **Secret exposure during inspection.** A redaction filter used while reading
-  `~/.config/opencode/service.json` matched `key|token|secret|auth` but not
-  `password`, so the local OpenCode server password was printed in the session
-  transcript. The user was told and advised to rotate it. Future redaction
-  should include `password` and default to printing key names only.
 
 ## Decisions and rationale
 
