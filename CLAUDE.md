@@ -1,3 +1,5 @@
+@AGENTS.md
+
 ## gstack (REQUIRED — global install)
 
 **Before doing ANY work, verify gstack is installed:**
