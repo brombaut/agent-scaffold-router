@@ -4,11 +4,32 @@
   "description": "Local proxy that routes coding-agent turns between a strong and a weak model",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brombaut/agent-scaffold-router.git"
+  },
+  "keywords": [
+    "opencode",
+    "llm",
+    "router",
+    "proxy",
+    "responses-api",
+    "coding-agent"
+  ],
   "bin": {
     "agent-scaffold-router": "src/cli.ts"
   },
+  "files": [
+    "src",
+    "examples",
+    "README.md"
+  ],
+  "engines": {
+    "bun": ">=1.1"
+  },
   "scripts": {
     "serve": "bun src/cli.ts serve",
+    "report": "bun src/cli.ts report",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
