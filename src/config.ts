@@ -13,6 +13,20 @@ export interface Tier {
   price: Price;
 }
 
+export type TierName = "strong" | "weak";
+
+export interface Policy {
+  /** "turn": decide per user turn. "session": decide on the first turn and hold. */
+  granularity: "turn" | "session";
+  strongThreshold: number;
+  escalation: { consecutiveToolErrors: number; repeatedToolCalls: number };
+  keywords: { strong: string[]; weak: string[] };
+  /** Tier for OpenCode's title-generation requests. */
+  titleTier: TierName;
+  /** Tier for compaction (summary) requests; these re-read the whole context uncached. */
+  compactionTier: TierName;
+}
+
 export interface Config {
   port: number;
   upstream: {
@@ -25,6 +39,7 @@ export interface Config {
     auth: "inject" | "forward";
   };
   tiers: { strong: Tier; weak: Tier };
+  policy: Policy;
   log: { path: string; captureBodies: boolean; captureDir: string };
 }
 
@@ -46,6 +61,17 @@ export const DEFAULT_CONFIG: Config = {
       model: "gpt-6-luna",
       price: { input: 0.1, output: 0.5, cachedRead: 0.01, cachedWrite: 0.125 },
     },
+  },
+  policy: {
+    granularity: "turn",
+    strongThreshold: 3,
+    escalation: { consecutiveToolErrors: 3, repeatedToolCalls: 3 },
+    keywords: {
+      strong: ["architect", "design", "refactor", "debug", "investigate", "why", "root cause", "race", "deadlock", "performance", "security", "migrate", "plan"],
+      weak: ["rename", "typo", "format", "lint", "run the tests", "commit", "list", "show me"],
+    },
+    titleTier: "weak",
+    compactionTier: "strong",
   },
   log: {
     path: join(dataDir, "decisions.jsonl"),

@@ -25,6 +25,14 @@ export interface StreamSummary {
   model: string | null;
   error: unknown;
   eventTypes: Record<string, number>;
+  /** IDs of reasoning items the model emitted (so the router knows which model owns them). */
+  reasoningIds: string[];
+}
+
+/** Collects reasoning item IDs from a Responses `output` array. */
+export function reasoningIdsOf(output: unknown): string[] {
+  if (!Array.isArray(output)) return [];
+  return output.filter((o: any) => o?.type === "reasoning" && typeof o.id === "string").map((o: any) => o.id);
 }
 
 /**
@@ -33,7 +41,14 @@ export interface StreamSummary {
  */
 export class ResponsesStreamReader {
   private buffer = "";
-  readonly summary: StreamSummary = { usage: null, responseId: null, model: null, error: null, eventTypes: {} };
+  readonly summary: StreamSummary = {
+    usage: null,
+    responseId: null,
+    model: null,
+    error: null,
+    eventTypes: {},
+    reasoningIds: [],
+  };
 
   push(chunk: string): void {
     this.buffer += chunk;
@@ -49,6 +64,10 @@ export class ResponsesStreamReader {
     if (this.buffer.trim()) this.handleEvent(this.buffer);
     this.buffer = "";
     return this.summary;
+  }
+
+  private addReasoningId(id: string): void {
+    if (!this.summary.reasoningIds.includes(id)) this.summary.reasoningIds.push(id);
   }
 
   private handleEvent(raw: string): void {
@@ -71,8 +90,10 @@ export class ResponsesStreamReader {
       this.summary.responseId = resp.id ?? this.summary.responseId;
       this.summary.model = resp.model ?? this.summary.model;
       if (resp.usage) this.summary.usage = parseUsage(resp.usage);
+      for (const id of reasoningIdsOf(resp.output)) this.addReasoningId(id);
       if (resp.error) this.summary.error = resp.error;
     }
+    if (type === "response.output_item.done") for (const id of reasoningIdsOf([evt.item])) this.addReasoningId(id);
     if (type === "error") this.summary.error = evt.error ?? evt;
   }
 }

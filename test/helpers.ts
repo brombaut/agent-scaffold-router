@@ -2,8 +2,8 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_CONFIG, type Config } from "../src/config.ts";
-import type { RequestLogLine } from "../src/log/requests.ts";
-import { startServer } from "../src/server.ts";
+import type { DecisionLogLine } from "../src/log/decisions.ts";
+import { startServer, type ServerOptions } from "../src/server.ts";
 
 export const SSE_FIXTURE = [
   `event: response.created\ndata: {"type":"response.created","response":{"id":"resp_1","model":"gpt-6-luna","status":"in_progress"}}\n\n`,
@@ -59,18 +59,19 @@ export function testConfig(baseURL: string, extra: Partial<Config> = {}): Config
 }
 
 /** Starts the proxy and returns a helper that waits for the next log line. */
-export function startProxy(cfg: Config, key: string | null = "test-key") {
-  const waiters: ((l: RequestLogLine) => void)[] = [];
-  const lines: RequestLogLine[] = [];
+export function startProxy(cfg: Config, key: string | null = "test-key", extra: { score?: ServerOptions["score"] } = {}) {
+  const waiters: ((l: DecisionLogLine) => void)[] = [];
+  const lines: DecisionLogLine[] = [];
   const server = startServer(cfg, {
     apiKey: async () => key,
+    ...extra,
     onLogged: (l) => {
       lines.push(l);
       waiters.shift()?.(l);
     },
   });
   const nextLog = () =>
-    new Promise<RequestLogLine>((resolve) => {
+    new Promise<DecisionLogLine>((resolve) => {
       const existing = lines.shift();
       if (existing) resolve(existing);
       else waiters.push((l) => resolve(lines.splice(lines.indexOf(l), 1)[0]!));

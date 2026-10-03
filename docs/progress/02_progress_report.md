@@ -41,6 +41,7 @@
 - **Within a turn, Luna → Sol:** replaying Luna's mid-turn request, including its `rs_` reasoning item, encrypted content and `fc_` IDs, against `gpt-6.1-sol` returned 200. This is the escalation path in #2.
 - **Strong → weak within a turn:** not tested. The spec never does it (one-way escalation).
 - **Conclusion:** decision rule 9 does not fire, and `granularity: "turn"` stays the default.
+- **Correction (see [report 03](03_progress_report.md)):** the mid-turn replay was sent without OpenCode's session headers. With those headers, Zen rejects Luna's reasoning items sent to Sol (HTTP 400). Turn granularity still holds, but only because the router now drops reasoning items another model produced.
 
 **4. Title-generation and compaction requests.**
 - **Title:** **0 tools**, about 2.1K characters of `instructions`, one user message, the session's `prompt_cache_key`, and it runs in parallel with the first agent request. Easy to tell apart.

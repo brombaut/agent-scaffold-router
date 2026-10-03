@@ -61,6 +61,14 @@ describe("ResponsesStreamReader", () => {
     }
   });
 
+  test("collects reasoning item IDs from output_item.done and the final response", () => {
+    const r = new ResponsesStreamReader();
+    r.push(`data: {"type":"response.output_item.done","item":{"type":"reasoning","id":"rs_a","encrypted_content":"x"}}\n\n`);
+    r.push(`data: {"type":"response.output_item.done","item":{"type":"function_call","id":"fc_a"}}\n\n`);
+    r.push(`data: {"type":"response.completed","response":{"id":"resp_1","output":[{"type":"reasoning","id":"rs_a"},{"type":"reasoning","id":"rs_b"}]}}\n\n`);
+    expect(r.end().reasoningIds).toEqual(["rs_a", "rs_b"]);
+  });
+
   test("records failed responses and error events", () => {
     const r = new ResponsesStreamReader();
     r.push(`data: {"type":"response.failed","response":{"id":"resp_x","error":{"code":"bad"}}}\n\n`);

@@ -1,6 +1,6 @@
 // OpenCode v2 config for agent-scaffold-router (verified with OpenCode 2.0.22).
 // Put this in your project's opencode.jsonc (or ~/.config/opencode/opencode.jsonc),
-// start the proxy with `agent-scaffold-router serve`, then pick a router/* model.
+// start the proxy with `agent-scaffold-router serve`, then pick router/auto.
 {
   "$schema": "https://opencode.ai/config.json",
   "providers": {
@@ -16,13 +16,16 @@
         "transport": "http"
       },
       "models": {
-        "gpt-6.1-sol": { "name": "GPT-6.1 Sol (via router)" },
-        "gpt-6-luna": { "name": "GPT-6 Luna (via router)" }
+        // Routed per turn: weak first, strong on heuristics or failure signals.
+        "auto": { "name": "Router: auto" },
+        // Forced tiers, useful as baselines.
+        "strong": { "name": "Router: strong (gpt-6.1-sol)" },
+        "weak": { "name": "Router: weak (gpt-6-luna)" }
       }
     }
   },
   "agents": {
-    // In testing, untitled sessions hung before the first request until this was set (not yet root-caused).
-    "title": { "model": "router/gpt-6-luna" }
+    // Session titles are cheap; send them to the weak tier.
+    "title": { "model": "router/weak" }
   }
 }
