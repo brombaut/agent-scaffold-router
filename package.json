@@ -1,0 +1,19 @@
+{
+  "name": "agent-scaffold-router",
+  "version": "0.0.1",
+  "description": "Local proxy that routes coding-agent turns between a strong and a weak model",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "agent-scaffold-router": "src/cli.ts"
+  },
+  "scripts": {
+    "serve": "bun src/cli.ts serve",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,28 @@
+// OpenCode v2 config for agent-scaffold-router (verified with OpenCode 2.0.22).
+// Put this in your project's opencode.jsonc (or ~/.config/opencode/opencode.jsonc),
+// start the proxy with `agent-scaffold-router serve`, then pick a router/* model.
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "router": {
+      "name": "Agent Scaffold Router",
+      // The proxy injects the real Zen key, so this variable can hold any placeholder.
+      "env": ["ASR_CLIENT_KEY"],
+      // The docs list openai-compatible/responses, but 2.0.22 does not ship it.
+      "package": "@opencode/ai/providers/openai/responses",
+      "settings": {
+        "baseURL": "http://127.0.0.1:8787/v1",
+        // Keep HTTP: a WebSocket transport would send only deltas and bypass per-request routing.
+        "transport": "http"
+      },
+      "models": {
+        "gpt-6.1-sol": { "name": "GPT-6.1 Sol (via router)" },
+        "gpt-6-luna": { "name": "GPT-6 Luna (via router)" }
+      }
+    }
+  },
+  "agents": {
+    // In testing, untitled sessions hung before the first request until this was set (not yet root-caused).
+    "title": { "model": "router/gpt-6-luna" }
+  }
+}
