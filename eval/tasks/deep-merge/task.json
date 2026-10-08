@@ -1,0 +1,1 @@
+{ "difficulty": "hard", "prompt": "withDefaults() in src/settings.ts gives different results the second time it's called, arrays from user settings get mixed with the defaults, and someone flagged a security issue in deepMerge. Fix all three." }

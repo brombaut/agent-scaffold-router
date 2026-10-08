@@ -1,0 +1,1 @@
+{ "difficulty": "easy", "prompt": "Implement clamp in src/math.ts so the tests pass." }

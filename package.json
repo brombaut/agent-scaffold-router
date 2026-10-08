@@ -30,7 +30,8 @@
     "serve": "bun src/cli.ts serve",
     "report": "bun src/cli.ts report",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval": "bun eval/run.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

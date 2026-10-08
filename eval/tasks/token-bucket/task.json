@@ -1,0 +1,1 @@
+{ "difficulty": "hard", "prompt": "Our rate limiter in src/bucket.ts starves clients that poll frequently, and after an idle period it lets through huge bursts. Please fix it." }

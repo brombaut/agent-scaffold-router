@@ -1,0 +1,1 @@
+{ "difficulty": "hard", "prompt": "The LRU cache in src/lru.ts is evicting the wrong entries. Users report that items they read recently disappear while stale ones stay. Can you fix it?" }

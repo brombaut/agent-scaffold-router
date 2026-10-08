@@ -1,0 +1,1 @@
+{ "difficulty": "hard", "prompt": "parseCSV in src/csv.ts breaks on real-world files: quoted fields containing commas, doubled quotes inside quoted fields, newlines inside quotes, and Windows line endings. Make it handle RFC 4180 properly." }

@@ -1,0 +1,3 @@
+[test]
+# Only the project's own tests; eval/tasks/*/repo hold deliberately failing ones.
+root = "test"

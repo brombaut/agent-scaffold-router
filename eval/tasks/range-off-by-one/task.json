@@ -1,0 +1,1 @@
+{ "difficulty": "easy", "prompt": "range(0, 3) returns [0, 1, 2, 3] but it should be [0, 1, 2] (end is exclusive, like Python). Fix it." }

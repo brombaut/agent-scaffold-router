@@ -1,0 +1,1 @@
+{ "difficulty": "hard", "prompt": "When a handler registered with once() fires, the next handler for the same event sometimes doesn't run, and off() doesn't remove handlers added with once(). Why? Fix the root cause in src/emitter.ts." }
