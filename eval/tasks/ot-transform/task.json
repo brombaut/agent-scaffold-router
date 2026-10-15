@@ -1,0 +1,1 @@
+{ "difficulty": "hard", "prompt": "Two people editing the same document end up with different text after their edits sync. transform() in src/ot.ts is supposed to make concurrent edits converge, but it doesn't in several cases. Fix it." }

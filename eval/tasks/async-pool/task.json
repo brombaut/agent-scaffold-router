@@ -1,0 +1,1 @@
+{ "difficulty": "hard", "prompt": "Our job runner in src/pool.ts is flaky. With mapLimit, some jobs run twice while others never run, results come back in the wrong order, and jobs keep starting after one has failed or after we cancel. Separately, the Mutex sometimes deadlocks the whole process and doesn't run waiters in order. Fix mapLimit and Mutex." }

@@ -1,0 +1,1 @@
+{ "difficulty": "hard", "prompt": "Users report wrong dates from occurrences() in src/recur.ts. 'The 31st of every month' gives dates like March 3rd, 'last Friday' is off in some months, 'last day of the month' is nonsense, and the until date gets left out. Fix the monthly recurrence logic." }

@@ -1,0 +1,1 @@
+{ "difficulty": "hard", "prompt": "Two problems with our incremental builder (src/). After I edit a task's input a couple of levels down the dependency tree, build() keeps returning the old output for the top-level target. And projects where two tasks share a dependency fail with 'cycle detected', even though there is no cycle. Fix both." }

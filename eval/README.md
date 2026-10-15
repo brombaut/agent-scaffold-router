@@ -33,10 +33,11 @@ Options for `run`: `--tasks a,b`, `--configs auto,strong,weak`, `--reps N`, `--t
 
 ## Tasks
 
-12 small TypeScript repos. Each has a failing `bun test`, a natural-sounding prompt in `task.json` and a reference fix in `solution/`, which is used only by `self-check`.
+17 small TypeScript repos. Each has a failing `bun test`, a natural-sounding prompt in `task.json` and a reference fix in `solution/`, which is used only by `self-check`.
 
 - **easy:** `greeting-typo`, `rename-function`, `add-clamp`, `range-off-by-one`, `slugify`, `config-default`
 - **hard:** `lru-cache`, `async-fetch-all`, `csv-parser`, `emitter-once`, `token-bucket`, `deep-merge`
+- **hard, added 2026-10-14** after the weak model solved 17/18 hard runs: `ot-transform`, `json-patch`, `incremental-build`, `async-pool`, `monthly-recurrence`. Each has several interacting bugs (3–10 failing tests), `incremental-build` spans three files, and `ot-transform` is checked by a seeded randomized convergence test, so patching to make one test pass doesn't work.
 
 The prompts are written the way a user would write them, not tuned for the heuristic. Several hard tasks contain no strong keyword, which tests whether escalation catches what the turn-start heuristic misses.
 
