@@ -1,7 +1,7 @@
 # 002 — Plan: evaluate the router on Aider Polyglot's exercises
 
 **Date:** 2026-10-16
-**Status:** plan only. Nothing is built, and every paid stage needs the user's explicit go.
+**Status:** plan only. Nothing is built, and the paid run needs the user's explicit go.
 **Context:** [progress report 06](../progress/06_progress_report.md), [eval README](../../eval/README.md)
 
 ## Why
@@ -16,7 +16,7 @@ Our own tasks can't separate the tiers. Across three rounds, the weak model (`gp
 
 So we stop writing tasks and use problems that were picked *because* models fail them: [Aider Polyglot](https://github.com/Aider-AI/polyglot-benchmark), the 225 hardest Exercism exercises across six languages.
 
-**Scope: a subset, not the whole benchmark.** A full pass of all three configs would cost about $25–40 and take about 12 hours. Instead we use **Python and JavaScript only** (83 exercises), screen **40** of them on weak, and run strong and auto on **15**. That's about **$2.20 and 70 minutes** in total, inside the $3.06 left of the approved eval budget. See [Subset and cost](#subset-and-cost).
+**Scope: a subset, not the whole benchmark.** A full pass of all three configs would cost about $25–40 and take about 12 hours. Instead we use **one fixed subset of 60 Python and JavaScript exercises**, and run all three configs on exactly those 60. That's about **$8.30**, inside the **$10 eval budget** (raised on 2026-10-16). See [Subset and cost](#subset-and-cost).
 
 **Goal:** compare `router/weak`, `router/strong` and `router/auto` *against each other* on the same harness. We will not compare against Aider's published leaderboard. So we run Polyglot's exercises and tests unmodified through our own OpenCode harness, and the scores are ours, not Aider's.
 
@@ -83,7 +83,7 @@ This is Aider's protocol: 2 tries, tests hidden, test output shown on the retry.
 
 1. **`eval/polyglot.sh`:** clones the benchmark at the pinned SHA into `eval/polyglot/`.
 2. **`eval/polyglot.Dockerfile`:** the Node and Python parts of Aider's Dockerfile (Node 20 with its pinned jest/babel packages, Python 3.11 with pytest), plus Aider's `npm-test.sh`.
-3. **`eval/polyglot-subset.txt`:** the 40 exercises, drawn once with a fixed seed from the 83 Python and JS ones (proportionally, so about 24 JS and 16 Python). Committed, so every run uses the same set.
+3. **`eval/polyglot-subset.txt`:** the 60 exercises, drawn once with a fixed seed from the 83 Python and JS ones (35 JS and 25 Python, in proportion). Committed, so every run uses the same set.
 4. **A loader in `eval/run.ts`:** `--suite polyglot` makes one `Task` per exercise in the subset file, with the prompt, the hidden paths (`.meta/` plus the test files), the check (the Docker command) and the reference solution (`.meta`'s example files, for `self-check`). `--tasks` still narrows it further.
 5. **The second try:** if the check fails, run `opencode run --session <id>` with Aider's retry prompt and check again. Record `solved1` and `solved2`.
 6. **Summary:** add language and solved@1/@2 columns.
@@ -93,23 +93,21 @@ Rough size: a couple of hundred lines, mostly the loader and the Docker check.
 
 ## Subset and cost
 
-From our runs so far, a hard task costs **weak $0.0031** on average (max $0.008) and **strong $0.041** (max $0.079), at about 60s per run. Polyglot prompts are longer and some runs take 2 tries, so I assume **2–3× that**: about **$0.008 per weak run and $0.10 per strong run**, with auto somewhere in between.
+From our runs so far, a hard task costs **weak $0.0031** on average (max $0.008) and **strong $0.041** (max $0.079), at about 60s per run. Polyglot prompts are longer and some runs take 2 tries, so I assume **2–3× that**.
 
-| stage | what | runs | cost | time | gate |
-|---|---|---|---|---|---|
-| 0 | Build it; self-check and mock runs | — | $0 | — | — |
-| 1 | **Weak** on the 40-exercise subset, 1 rep | 40 | ~$0.35 | ~40 min | user's go |
-| 2 | **Strong and auto** on 15 of those 40: every exercise weak failed (up to 15), topped up with randomly chosen weak passes | 30 | ~$1.80 | ~30 min | user's go |
-| | **total** | **70** | **~$2.20** | **~70 min** | inside the $3.06 left |
+All three configs run on the same 60 exercises, 1 rep:
 
-**Stop rule after stage 1:** if weak solves 35 or more of the 40 (≥ 88%), Polyglot doesn't separate the tiers either. We stop and rethink before spending more.
+| config | per run | 60 runs |
+|---|---|---|
+| weak | ~$0.008 | ~$0.50 |
+| auto | ~$0.03 | ~$1.80 |
+| strong | ~$0.10 | ~$6.00 |
+| **total** | | **~$8.30** |
 
-**What the numbers mean:**
-- Stage 1 gives an **unbiased weak pass rate** on Python/JS Polyglot.
-- The stage-2 set is **deliberately enriched for exercises weak fails**, so it shows whether strong rescues them and whether auto finds them. It is not a random sample, so its pass rates are not "the" pass rate. We'll report it that way.
-- With 15 exercises and 1 rep, only large differences mean anything. A 3-out-of-15 gap is noise. This is a cheap sign of whether the router helps, not a precise measurement. If it looks promising, we can decide then whether a bigger run is worth it.
+The run uses `--budget 10`, so the proxy stops it if the estimate is wrong. 180 runs at about 60s each take **about 3 hours**.
+
+With 60 exercises and 1 rep, small differences between configs are noise. This shows whether the router helps; it doesn't give precise numbers.
 
 ## Open questions for the user
 
-1. **Subset size:** 40 to screen and 15 for strong/auto (about $2.20), or smaller or bigger?
-2. **Tries:** 2 as in Aider (recommended), or 1? With 1 try, a failure costs a bit less, and turn 2 can no longer test per-turn routing.
+1. **Tries:** 2 as in Aider (recommended), or 1?
