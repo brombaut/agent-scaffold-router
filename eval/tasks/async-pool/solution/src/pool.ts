@@ -2,7 +2,8 @@
  * Maps `items` through async `fn`, running at most `limit` calls at once.
  * Resolves with the results in input order. On the first rejection, or when
  * `signal` aborts, rejects with that error (or the abort reason) and starts no
- * further calls; calls already running are left to finish.
+ * further calls; calls already running are left to finish. A synchronous throw
+ * from `fn` counts as a rejection. Rejects with a RangeError if `limit` < 1.
  */
 export function mapLimit<T, R>(
   items: T[],

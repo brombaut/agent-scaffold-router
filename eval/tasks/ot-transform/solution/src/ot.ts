@@ -21,7 +21,8 @@ export function applyAll(doc: string, ops: Op[]): string {
 /**
  * Rewrites `a` so it can be applied after `b`, where both were made against
  * the same document. Concurrent inserts at the same position are ordered by
- * site id (lower site first). Returns zero, one or two ops.
+ * site id (lower site first). Text inserted inside a concurrently deleted
+ * range is kept. Returns zero, one or two ops.
  */
 export function transform(a: Op, b: Op): Op[] {
   if (a.type === "ins" && b.type === "ins") {

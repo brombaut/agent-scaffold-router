@@ -1,4 +1,4 @@
-/** Least-recently-used cache. Reads and writes both count as a use. */
+/** Least-recently-used cache. get() and set() count as a use; has() does not. */
 export class LRUCache<K, V> {
   private map = new Map<K, V>();
 

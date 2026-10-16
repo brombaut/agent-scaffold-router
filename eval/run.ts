@@ -26,10 +26,12 @@ Commands:
   list                            List the tasks.
   self-check [--tasks a,b]        Free: checks each task fails as given and passes with its reference solution.
   run (--mock | --live --budget USD) [--tasks a,b] [--configs auto,strong,weak]
-      [--reps N] [--timeout SECONDS] [--capture]
+      [--reps N] [--timeout SECONDS] [--capture] [--hide-tests]
                                   --mock: fake upstream, costs nothing, every task fails (pipeline smoke test).
                                   --live: real Zen calls. Stops, and refuses further upstream calls,
                                   once logged spend reaches --budget.
+                                  --hide-tests: the agent's workspace has no test/ dir (it is put
+                                  back for the check), and tasks use hiddenPrompt if they have one.
   summarize <run dir>             Rebuild summary.md from a run's results.jsonl.
 `;
 
@@ -40,6 +42,8 @@ export interface Task {
   id: string;
   difficulty: "easy" | "hard";
   prompt: string;
+  /** Prompt for --hide-tests runs, when `prompt` refers to the tests. */
+  hiddenPrompt?: string;
   /** Check command, run in the workspace after the agent finishes. */
   check: string[];
   /** Paths the agent must not change; restored from the original before the check. */
@@ -69,10 +73,14 @@ async function sh(cmd: string[], cwd: string, env?: Record<string, string | unde
   return { code, stdout, stderr };
 }
 
-/** Copies the task's repo into `ws` and commits it, so the agent's changes show up as a diff. */
-async function prepareWorkspace(task: Task, ws: string): Promise<void> {
+/**
+ * Copies the task's repo into `ws` and commits it, so the agent's changes show
+ * up as a diff. With `hideTests`, the protected paths are left out entirely.
+ */
+async function prepareWorkspace(task: Task, ws: string, hideTests = false): Promise<void> {
   await rm(ws, { recursive: true, force: true });
   await cp(join(task.dir, "repo"), ws, { recursive: true });
+  if (hideTests) for (const p of task.protect) await rm(join(ws, p), { recursive: true, force: true });
   const git = ["git", "-c", "user.name=eval", "-c", "user.email=eval@localhost"];
   await sh([...git, "init", "-q"], ws);
   await sh([...git, "add", "-A"], ws);
@@ -154,6 +162,7 @@ interface RunOptions {
   reps: number;
   timeoutSec: number;
   capture: boolean;
+  hideTests: boolean;
 }
 
 function findSessionId(stdout: string): string | null {
@@ -248,12 +257,12 @@ async function run(opts: RunOptions): Promise<void> {
         const dir = join(runDir, task.id, `${config}-r${rep}`);
         const ws = join(scratch, "ws", task.id, `${config}-r${rep}`);
         await mkdir(dir, { recursive: true });
-        await prepareWorkspace(task, ws);
+        await prepareWorkspace(task, ws, opts.hideTests);
 
         current = { lines: [], proc: null, budgetStopped: false };
         const started = performance.now();
         const proc = Bun.spawn(
-          [opencode, "run", "--standalone", "--auto", "--format", "json", "--print-logs", "--log-level", "error", "-m", `router/${config}`, task.prompt],
+          [opencode, "run", "--standalone", "--auto", "--format", "json", "--print-logs", "--log-level", "error", "-m", `router/${config}`, opts.hideTests ? (task.hiddenPrompt ?? task.prompt) : task.prompt],
           { cwd: ws, env, stdout: "pipe", stderr: "pipe" },
         );
         current.proc = proc;
@@ -439,6 +448,7 @@ if (import.meta.main) {
         reps: Number(flag(args, "--reps") ?? 1),
         timeoutSec: Number(flag(args, "--timeout") ?? 600),
         capture: args.includes("--capture"),
+        hideTests: args.includes("--hide-tests"),
       });
       break;
     }

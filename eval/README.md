@@ -21,13 +21,14 @@ bun eval/run.ts run --live --budget 5              # real Zen calls; spends mone
 bun eval/run.ts summarize eval/runs/<stamp>
 ```
 
-Options for `run`: `--tasks a,b`, `--configs auto,strong,weak`, `--reps N`, `--timeout SECONDS` (default 600) and `--capture` (save request and response bodies).
+Options for `run`: `--tasks a,b`, `--configs auto,strong,weak`, `--reps N`, `--timeout SECONDS` (default 600) `--capture` (save request and response bodies) and `--hide-tests` (see below).
 
 ## Design notes
 
 - **Isolation.** Workspaces and OpenCode's `HOME`/XDG dirs are in a temp dir outside this repo. OpenCode therefore doesn't load this project's `AGENTS.md`, your global OpenCode config or your skills in `~/.claude/skills`. Its only config is `examples/opencode.jsonc`, pointed at the eval's own proxy.
 - **Own proxy and log.** The runner starts the proxy in-process on a random port, with your `~/.config/agent-scaffold-router/config.json` applied. It logs to `eval/runs/<stamp>/decisions.jsonl`, not your everyday log.
 - **Budget guard.** Once logged spend reaches `--budget`, the proxy answers further upstream calls with HTTP 402 and the current OpenCode run is killed. The most it can overshoot is whatever requests are already in flight.
+- **Hidden tests (`--hide-tests`).** The workspace has no `test/` dir, so the agent can't iterate against the tests; the check puts it back. Tasks whose `prompt` mentions the tests have a `hiddenPrompt`. Anything the tests require that the prompt doesn't say is written in the source's doc comments. Added 2026-10-16 because with visible tests the weak model solved 26 of 28 hard runs.
 - **No test tampering.** Each task's `test/` dir is restored from the original before the check, so editing the tests doesn't count as solving the task.
 - **Attribution.** Runs are sequential, and every log line that arrives during a run belongs to it. `opencodeSession` and `sessionKeys` in each result let you cross-check this.
 

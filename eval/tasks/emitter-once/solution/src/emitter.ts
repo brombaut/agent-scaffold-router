@@ -1,6 +1,7 @@
 type Handler = (...args: any[]) => void;
 type Entry = { fn: Handler; listener: Handler };
 
+/** Handlers added while an event is being emitted first run on the next emit of it. */
 export class Emitter {
   private handlers = new Map<string, Entry[]>();
 
