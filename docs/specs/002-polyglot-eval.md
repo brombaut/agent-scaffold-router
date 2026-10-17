@@ -58,14 +58,10 @@ for each rep × exercise × config:
              + Aider's addendum: 'Use the above instructions to modify the supplied files: <stubs> …'"
   check:  copy the test files back, apply Aider's tweaks, run the language's test
           command inside the polyglot Docker image (workspace mounted)
-  passed? → solved@1, done
-  failed? → turn 2 in the SAME session (opencode run --session <id>):
-             "<test output>  ####  See the testing errors above. The tests are correct,
-              don't try and change them. Fix the code in <stubs> to resolve the errors."
-          → check again → solved@2
+  passed? → solved
 ```
 
-This is Aider's protocol: 2 tries, tests hidden, test output shown on the retry. A bonus for us is that turn 2 is a real second user turn, so it exercises per-turn routing. A failing turn 1 on weak, for example, can move turn 2 to strong.
+One try, with the tests hidden. Aider gives a second try with the test output, but we don't need it (see below).
 
 ### Decisions in this design
 
@@ -74,7 +70,7 @@ This is Aider's protocol: 2 tries, tests hidden, test output shown on the retry.
 | Read exercises straight from a pinned clone; don't copy or edit them into `eval/tasks/` | Convert them into our task format | Keeps the benchmark unmodified. A small loader turns an exercise dir into our `Task` at run time. |
 | The clone lives in `eval/polyglot/` (gitignored), fetched by a script at the pinned SHA | Commit the exercises | Keeps the repo small, and the pinned SHA makes it reproducible. |
 | Hide `.meta/` and the test files during the agent's turn | Hide only the tests (our current `--hide-tests`) | `.meta/` holds the reference solution. |
-| 2 tries, as in Aider | 1 try | Matches the source protocol and tests multi-turn routing. We report solved@1 and solved@2. |
+| 1 try | 2 tries, as in Aider | We only compare our configs against each other, so matching Aider's protocol buys nothing. A scripted retry that pastes test output isn't a realistic second turn. One try is cheaper and needs less code. |
 | The agent runs on the host; only the check runs in Docker | Run OpenCode inside the container too | Much simpler, since the proxy, auth and isolated HOME stay as they are. The host has Node and Python, so the agent can run code itself, the same for every config. |
 | Build a small image with only the Node and Python parts of Aider's Dockerfile | Use Aider's full image | We only need two toolchains, not Aider itself or Go, Rust, Java and C++. |
 | A seeded random subset, picked once and written to a file | Hand-pick exercises | No cherry-picking, and the exact set is reproducible. |
@@ -85,15 +81,14 @@ This is Aider's protocol: 2 tries, tests hidden, test output shown on the retry.
 2. **`eval/polyglot.Dockerfile`:** the Node and Python parts of Aider's Dockerfile (Node 20 with its pinned jest/babel packages, Python 3.11 with pytest), plus Aider's `npm-test.sh`.
 3. **`eval/polyglot-subset.txt`:** the 60 exercises, drawn once with a fixed seed from the 83 Python and JS ones (35 JS and 25 Python, in proportion). Committed, so every run uses the same set.
 4. **A loader in `eval/run.ts`:** `--suite polyglot` makes one `Task` per exercise in the subset file, with the prompt, the hidden paths (`.meta/` plus the test files), the check (the Docker command) and the reference solution (`.meta`'s example files, for `self-check`). `--tasks` still narrows it further.
-5. **The second try:** if the check fails, run `opencode run --session <id>` with Aider's retry prompt and check again. Record `solved1` and `solved2`.
-6. **Summary:** add language and solved@1/@2 columns.
-7. **Free checks:** `self-check --suite polyglot` (every stub fails, every reference solution passes, inside Docker) and `run --mock` on a couple of exercises per language.
+5. **Summary:** add a language column.
+6. **Free checks:** `self-check --suite polyglot` (every stub fails, every reference solution passes, inside Docker) and `run --mock` on a couple of exercises per language.
 
 Rough size: a couple of hundred lines, mostly the loader and the Docker check.
 
 ## Subset and cost
 
-From our runs so far, a hard task costs **weak $0.0031** on average (max $0.008) and **strong $0.041** (max $0.079), at about 60s per run. Polyglot prompts are longer and some runs take 2 tries, so I assume **2–3× that**.
+From our runs so far, a hard task costs **weak $0.0031** on average (max $0.008) and **strong $0.041** (max $0.079), at about 60s per run. Polyglot prompts are longer, so I assume **2–3× that**.
 
 All three configs run on the same 60 exercises, 1 rep:
 
@@ -110,4 +105,4 @@ With 60 exercises and 1 rep, small differences between configs are noise. This s
 
 ## Open questions for the user
 
-1. **Tries:** 2 as in Aider (recommended), or 1?
+None. Tries: 1 (decided 2026-10-16).
