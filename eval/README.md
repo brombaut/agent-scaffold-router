@@ -21,7 +21,9 @@ bun eval/run.ts run --live --budget 5              # real Zen calls; spends mone
 bun eval/run.ts summarize eval/runs/<stamp>
 ```
 
-Options for `run`: `--tasks a,b`, `--configs auto,strong,weak`, `--reps N`, `--timeout SECONDS` (default 600) `--capture` (save request and response bodies) and `--hide-tests` (see below).
+Polyglot suite ([spec 002](../docs/specs/002-polyglot-eval.md)): run `eval/polyglot.sh` once (clones the benchmark, builds the `asr-polyglot` Docker image), then add `--suite polyglot` to `list`, `self-check` or `run`.
+
+Options for `run`: `--suite tasks|polyglot`, `--tasks a,b`, `--configs auto,strong,weak`, `--reps N`, `--timeout SECONDS` (default 600) `--capture` (save request and response bodies) and `--hide-tests` (see below).
 
 ## Design notes
 
@@ -41,6 +43,12 @@ Options for `run`: `--tasks a,b`, `--configs auto,strong,weak`, `--reps N`, `--t
 - **hard, added 2026-10-14** after the weak model solved 17/18 hard runs: `ot-transform`, `json-patch`, `incremental-build`, `async-pool`, `monthly-recurrence`. Each has several interacting bugs (3–10 failing tests), `incremental-build` spans three files, and `ot-transform` is checked by a seeded randomized convergence test, so patching to make one test pass doesn't work.
 
 The prompts are written the way a user would write them, not tuned for the heuristic. Several hard tasks contain no strong keyword, which tests whether escalation catches what the turn-start heuristic misses.
+
+## Polyglot suite
+
+The 60 exercises in `polyglot-subset.txt` (35 JS, 25 Python, seeded draw) from [Aider Polyglot](https://github.com/Aider-AI/polyglot-benchmark) at `7e0611e77b54`, read unmodified from the clone in `eval/polyglot/` (gitignored). Setup follows Aider's `benchmark/benchmark.py` at `Aider-AI/aider@38d4341e5976`: the prompt is the exercise's `.docs` plus Aider's addendum, the agent never sees `.meta/` (it holds the reference solution), `.docs/` or the tests, and the check copies the tests back and runs `pytest` or jest (with `xtest(` → `test(`) in the `asr-polyglot` image, offline and as your user. One try, no second attempt with test output.
+
+`javascript/ledger` passes as given: it's a refactoring exercise whose stub already works, so `self-check` reports it as FAIL.
 
 ## Output (`eval/runs/<stamp>/`, gitignored)
 

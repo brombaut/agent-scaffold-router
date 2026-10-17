@@ -17,12 +17,15 @@ import { startMockUpstream } from "./mock.ts";
 const ROOT = resolve(import.meta.dir, "..");
 const TASKS_DIR = join(ROOT, "eval/tasks");
 const RUNS_DIR = join(ROOT, "eval/runs");
+const POLYGLOT_DIR = join(ROOT, "eval/polyglot");
+const POLYGLOT_SUBSET = join(ROOT, "eval/polyglot-subset.txt");
+const POLYGLOT_IMAGE = "asr-polyglot";
 const CONFIGS = ["auto", "strong", "weak"] as const;
 type RouterConfig = (typeof CONFIGS)[number];
 
 const USAGE = `bun eval/run.ts <command>
 
-Commands:
+Commands (all take --suite tasks|polyglot; default tasks, our own TypeScript tasks):
   list                            List the tasks.
   self-check [--tasks a,b]        Free: checks each task fails as given and passes with its reference solution.
   run (--mock | --live --budget USD) [--tasks a,b] [--configs auto,strong,weak]
@@ -41,28 +44,84 @@ Commands:
 export interface Task {
   id: string;
   difficulty: "easy" | "hard";
+  language: string;
   prompt: string;
   /** Prompt for --hide-tests runs, when `prompt` refers to the tests. */
   hiddenPrompt?: string;
   /** Check command, run in the workspace after the agent finishes. */
   check: string[];
-  /** Paths the agent must not change; restored from the original before the check. */
+  /** Directory copied into the workspace. */
+  repo: string;
+  /** Paths the agent must not change; restored from `repo` before the check. */
   protect: string[];
-  dir: string;
+  /** Paths always left out of the workspace (e.g. the reference solution). */
+  hide: string[];
+  /** Reference solution for self-check: copied from [0] to workspace path [1]. */
+  solution: [string, string];
 }
 
-async function loadTasks(only?: string[]): Promise<Task[]> {
-  const ids = (await readdir(TASKS_DIR)).sort();
-  const tasks: Task[] = [];
-  for (const id of ids) {
-    if (only && !only.includes(id)) continue;
-    const dir = join(TASKS_DIR, id);
-    const meta = await Bun.file(join(dir, "task.json")).json();
-    tasks.push({ id, check: ["bun", "test"], protect: ["test"], ...meta, dir });
-  }
+const SUITES = ["tasks", "polyglot"] as const;
+type Suite = (typeof SUITES)[number];
+
+async function loadTasks(suite: Suite, only?: string[]): Promise<Task[]> {
+  const ids =
+    suite === "tasks"
+      ? (await readdir(TASKS_DIR)).sort()
+      : (await Bun.file(POLYGLOT_SUBSET).text()).split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
   const missing = only?.filter((id) => !ids.includes(id)) ?? [];
   if (missing.length) throw new Error(`unknown task(s): ${missing.join(", ")}`);
-  return tasks;
+  const load = suite === "tasks" ? loadLocalTask : loadPolyglotTask;
+  return Promise.all(ids.filter((id) => !only || only.includes(id)).map(load));
+}
+
+async function loadLocalTask(id: string): Promise<Task> {
+  const dir = join(TASKS_DIR, id);
+  const meta = await Bun.file(join(dir, "task.json")).json();
+  return { id, language: "typescript", check: ["bun", "test"], protect: ["test"], hide: [], repo: join(dir, "repo"), solution: [join(dir, "solution"), "."], ...meta };
+}
+
+/**
+ * One Aider Polyglot exercise, set up the way Aider's benchmark/benchmark.py
+ * does at Aider-AI/aider@38d4341e5976: the prompt is the docs plus Aider's
+ * addendum, and .meta/, .docs/ and the tests are hidden from the agent.
+ */
+async function loadPolyglotTask(id: string): Promise<Task> {
+  const [language, name] = id.split("/") as [string, string];
+  const dir = join(POLYGLOT_DIR, language, "exercises/practice", name);
+  const { files } = await Bun.file(join(dir, ".meta/config.json")).json();
+  const docs = async (f: string) => {
+    const file = Bun.file(join(dir, ".docs", f));
+    return (await file.exists()) ? file.text() : "";
+  };
+  const prompt =
+    (await docs("introduction.md")) +
+    (await docs("instructions.md")) +
+    (await docs("instructions.append.md")) +
+    `
+####
+
+Use the above instructions to modify the supplied files: ${files.solution.map((f: string) => f.split("/").pop()).join(" ")}
+Don't change the names of existing functions or classes, as they may be referenced from other code like unit tests, etc.
+Only use standard libraries, don't suggest installing any packages.
+`;
+  // Aider's test commands. npm-test.sh's steps are inlined for JS; `timeout`
+  // stops the container itself, since killing `docker run` would leave it running.
+  const test =
+    language === "python"
+      ? "pytest -p no:cacheprovider"
+      : "ln -sfn /npm-install/node_modules node_modules && sed -i 's/\\bxtest(/test(/g' *.spec.js && npm run test";
+  const uid = `${process.getuid?.() ?? 0}:${process.getgid?.() ?? 0}`;
+  return {
+    id,
+    difficulty: "hard",
+    language,
+    prompt,
+    check: ["sh", "-c", `docker run --rm --network none --user ${uid} -e HOME=/tmp -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD":/work -w /work ${POLYGLOT_IMAGE} timeout 180 sh -c "$0"`, test],
+    repo: dir,
+    protect: files.test,
+    hide: [".meta", ".docs", ...files.test],
+    solution: [join(dir, files.example[0]), files.solution[0]],
+  };
 }
 
 async function sh(cmd: string[], cwd: string, env?: Record<string, string | undefined>, timeoutMs = 120_000) {
@@ -79,8 +138,8 @@ async function sh(cmd: string[], cwd: string, env?: Record<string, string | unde
  */
 async function prepareWorkspace(task: Task, ws: string, hideTests = false): Promise<void> {
   await rm(ws, { recursive: true, force: true });
-  await cp(join(task.dir, "repo"), ws, { recursive: true });
-  if (hideTests) for (const p of task.protect) await rm(join(ws, p), { recursive: true, force: true });
+  await cp(task.repo, ws, { recursive: true });
+  for (const p of [...task.hide, ...(hideTests ? task.protect : [])]) await rm(join(ws, p), { recursive: true, force: true });
   const git = ["git", "-c", "user.name=eval", "-c", "user.email=eval@localhost"];
   await sh([...git, "init", "-q"], ws);
   await sh([...git, "add", "-A"], ws);
@@ -90,31 +149,32 @@ async function prepareWorkspace(task: Task, ws: string, hideTests = false): Prom
 async function restoreProtected(task: Task, ws: string): Promise<void> {
   for (const p of task.protect) {
     await rm(join(ws, p), { recursive: true, force: true });
-    await cp(join(task.dir, "repo", p), join(ws, p), { recursive: true });
+    await cp(join(task.repo, p), join(ws, p), { recursive: true });
   }
 }
 
 async function runCheck(task: Task, ws: string) {
-  const r = await sh(task.check, ws);
+  const r = await sh(task.check, ws, undefined, 200_000);
   return { passed: r.code === 0, code: r.code, output: r.stdout + r.stderr };
 }
 
 // ---------------------------------------------------------------------------
 // self-check
 
-async function selfCheck(only?: string[]): Promise<boolean> {
-  const tasks = await loadTasks(only);
+async function selfCheck(suite: Suite, only?: string[]): Promise<boolean> {
+  const tasks = await loadTasks(suite, only);
   const scratch = join(tmpdir(), `asr-eval-selfcheck-${process.pid}`);
   let ok = true;
   for (const task of tasks) {
     const ws = join(scratch, task.id);
     await prepareWorkspace(task, ws);
+    await restoreProtected(task, ws);
     const before = await runCheck(task, ws);
-    await cp(join(task.dir, "solution"), ws, { recursive: true });
+    await cp(task.solution[0], join(ws, task.solution[1]), { recursive: true });
     const after = await runCheck(task, ws);
     const good = !before.passed && after.passed;
     ok &&= good;
-    console.log(`${good ? "ok  " : "FAIL"}  ${task.id.padEnd(18)} ${task.difficulty.padEnd(5)} as given: ${before.passed ? "passes (should fail)" : "fails"}, with solution: ${after.passed ? "passes" : "fails (should pass)"}`);
+    console.log(`${good ? "ok  " : "FAIL"}  ${task.id.padEnd(30)} ${task.difficulty.padEnd(5)} as given: ${before.passed ? "passes (should fail)" : "fails"}, with solution: ${after.passed ? "passes" : "fails (should pass)"}`);
     if (!after.passed) console.log(after.output.trim().split("\n").slice(-15).join("\n"));
   }
   await rm(scratch, { recursive: true, force: true });
@@ -127,6 +187,7 @@ async function selfCheck(only?: string[]): Promise<boolean> {
 export interface RunResult {
   task: string;
   difficulty: Task["difficulty"];
+  language: string;
   config: RouterConfig;
   rep: number;
   solved: boolean;
@@ -155,6 +216,7 @@ export interface RunResult {
 }
 
 interface RunOptions {
+  suite: Suite;
   mode: "mock" | "live";
   budget: number;
   tasks?: string[];
@@ -174,7 +236,7 @@ function findSessionId(stdout: string): string | null {
 }
 
 async function run(opts: RunOptions): Promise<void> {
-  const tasks = await loadTasks(opts.tasks);
+  const tasks = await loadTasks(opts.suite, opts.tasks);
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const runDir = join(RUNS_DIR, stamp);
   // Workspaces and OpenCode's HOME live outside this repo, so OpenCode doesn't
@@ -294,6 +356,7 @@ async function run(opts: RunOptions): Promise<void> {
         const result: RunResult = {
           task: task.id,
           difficulty: task.difficulty,
+          language: task.language,
           config,
           rep,
           solved: check.passed,
@@ -323,7 +386,7 @@ async function run(opts: RunOptions): Promise<void> {
         await Bun.write(join(runDir, "results.jsonl"), results.map((r) => JSON.stringify(r)).join("\n") + "\n");
         const flags = [timedOut && "TIMEOUT", budgetStopped && "BUDGET", result.escalated && "escalated", exit !== 0 && `exit=${exit}`].filter(Boolean);
         console.log(
-          `${result.solved ? "PASS" : "fail"}  ${task.id.padEnd(18)} ${config.padEnd(6)} r${rep}  $${result.costUSD.toFixed(4)}  ${(wallMs / 1000).toFixed(0)}s  ${result.requests} req  start=${result.startTier ?? "-"}  total=$${spent.toFixed(4)}  ${flags.join(" ")}`,
+          `${result.solved ? "PASS" : "fail"}  ${task.id.padEnd(30)} ${config.padEnd(6)} r${rep}  $${result.costUSD.toFixed(4)}  ${(wallMs / 1000).toFixed(0)}s  ${result.requests} req  start=${result.startTier ?? "-"}  total=$${spent.toFixed(4)}  ${flags.join(" ")}`,
         );
       }
     }
@@ -352,6 +415,8 @@ function table(header: string[], rows: string[][]): string {
 }
 
 export function summarize(results: RunResult[]): string {
+  const lang = (r: RunResult) => r.language ?? "typescript"; // runs before 2026-10-17 have no language
+  const languages = [...new Set(results.map(lang))].sort();
   const configs = CONFIGS.filter((c) => results.some((r) => r.config === c));
   const byConfig = configs.map((c) => {
     const rs = results.filter((r) => r.config === c);
@@ -368,6 +433,7 @@ export function summarize(results: RunResult[]): string {
       `${solved}/${rs.length} (${pct(solved, rs.length)})`,
       `${easy.filter((r) => r.solved).length}/${easy.length}`,
       `${hard.filter((r) => r.solved).length}/${hard.length}`,
+      ...(languages.length > 1 ? languages.map((l) => `${rs.filter((r) => lang(r) === l && r.solved).length}/${rs.filter((r) => lang(r) === l).length}`) : []),
       usd(cost),
       solved ? usd(cost / solved) : "-",
       `${(median(rs.map((r) => r.wallMs)) / 1000).toFixed(0)}s`,
@@ -386,7 +452,7 @@ export function summarize(results: RunResult[]): string {
     const rs = results.filter((r) => r.task === t);
     const auto = rs.filter((r) => r.config === "auto");
     const autoStart = [...new Set(auto.map((r) => `${r.startTier ?? "-"}${r.escalated ? "→esc" : ""}`))].join(", ");
-    return [t, rs[0]!.difficulty, ...configs.map((c) => cell(rs.filter((r) => r.config === c))), autoStart || "-"];
+    return [t, lang(rs[0]!), rs[0]!.difficulty, ...configs.map((c) => cell(rs.filter((r) => r.config === c))), autoStart || "-"];
   });
 
   const total = results.reduce((s, r) => s + r.costUSD, 0);
@@ -395,11 +461,11 @@ export function summarize(results: RunResult[]): string {
     ``,
     `${results.length} run(s), total spend ${usd(total)}.`,
     ``,
-    table(["config", "solved", "easy", "hard", "cost", "$/solved", "median wall", "% strong reqs", "cache read", "escalated", "req errors", "cut short"], byConfig),
+    table(["config", "solved", "easy", "hard", ...(languages.length > 1 ? languages : []), "cost", "$/solved", "median wall", "% strong reqs", "cache read", "escalated", "req errors", "cut short"], byConfig),
     ``,
     `Per task (solved/runs, mean cost per run; "auto start" is the tier auto picked at turn start):`,
     ``,
-    table(["task", "difficulty", ...configs, "auto start"], perTask),
+    table(["task", "language", "difficulty", ...configs, "auto start"], perTask),
     ``,
   ].join("\n");
 }
@@ -416,12 +482,17 @@ const list = (s: string | undefined) => s?.split(",").map((x) => x.trim()).filte
 
 if (import.meta.main) {
   const [cmd, ...args] = process.argv.slice(2);
+  const suite = (flag(args, "--suite") ?? "tasks") as Suite;
+  if (!SUITES.includes(suite)) {
+    console.error(`unknown suite: ${suite} (one of ${SUITES.join(", ")})`);
+    process.exit(1);
+  }
   switch (cmd) {
     case "list":
-      for (const t of await loadTasks()) console.log(`${t.id.padEnd(18)} ${t.difficulty.padEnd(5)} ${t.prompt}`);
+      for (const t of await loadTasks(suite)) console.log(`${t.id.padEnd(30)} ${t.difficulty.padEnd(5)} ${t.prompt.split("\n")[0]}`);
       break;
     case "self-check":
-      process.exit((await selfCheck(list(flag(args, "--tasks")))) ? 0 : 1);
+      process.exit((await selfCheck(suite, list(flag(args, "--tasks")))) ? 0 : 1);
     case "run": {
       const mock = args.includes("--mock");
       const live = args.includes("--live");
@@ -441,6 +512,7 @@ if (import.meta.main) {
         process.exit(1);
       }
       await run({
+        suite,
         mode: mock ? "mock" : "live",
         budget: live ? budget : Infinity,
         tasks: list(flag(args, "--tasks")),

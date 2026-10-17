@@ -1,7 +1,7 @@
 # 002 — Plan: evaluate the router on Aider Polyglot's exercises
 
 **Date:** 2026-10-16
-**Status:** plan only. Nothing is built, and the paid run needs the user's explicit go.
+**Status:** built 2026-10-17 (see [eval README](../../eval/README.md#polyglot-suite)). The paid run needs the user's explicit go.
 **Context:** [progress report 06](../progress/06_progress_report.md), [eval README](../../eval/README.md)
 
 ## Why
