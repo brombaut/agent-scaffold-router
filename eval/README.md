@@ -19,6 +19,7 @@ bun eval/run.ts self-check                         # free: each task fails as gi
 bun eval/run.ts run --mock --tasks greeting-typo   # free: fake upstream, smoke-tests the pipeline
 bun eval/run.ts run --live --budget 5              # real Zen calls; spends money
 bun eval/run.ts summarize eval/runs/<stamp>
+bun eval/replay.ts eval/runs/<stamp> [decisions.json]   # free: prices a weak/strong pick per task against a finished run (spec 003)
 ```
 
 Polyglot suite ([spec 002](../docs/specs/002-polyglot-eval.md)): run `eval/polyglot.sh` once (clones the benchmark, builds the `asr-polyglot` Docker image), then add `--suite polyglot` to `list`, `self-check` or `run`.
