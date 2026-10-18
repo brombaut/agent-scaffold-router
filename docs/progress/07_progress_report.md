@@ -74,21 +74,43 @@ Strong cost about 12× as much per solved task as weak, with essentially the sam
 
 ### Polyglot paid run
 
-_To be filled in after the run. Planned: weak, auto and strong on the 60-exercise subset, 1 rep, 1 try, `--budget 10`; estimated ~$8.30 and ~3 hours._
+Run on 2026-10-17 with the user's go: weak, auto and strong on the 60-exercise subset, 1 rep, 1 try, `--budget 10`.
 
-- Run dir: _TBD_
-- Spend: _TBD_
+- Run dir: `eval/runs/2026-10-17T23-33-02/` (gitignored)
+- 180 runs in 84 minutes. Spend: **$2.67**, about a third of the $8.30 estimate. Total live eval spend is now $4.60.
 
 | config | solved | javascript | python | cost | $/solved | median wall | % strong reqs | escalated | cut short |
 |---|---|---|---|---|---|---|---|---|---|
-| strong | | | | | | | | | |
-| auto | | | | | | | | | |
-| weak | | | | | | | | | |
+| strong | **48/60 (80%)** | 26/35 | 22/25 | $1.87 | $0.039 | 30s | 86% | 0 | 0 |
+| auto | **28/60 (47%)** | 12/35 | 16/25 | $0.66 | $0.024 | 25s | 26% | 0 | 0 |
+| weak | **20/60 (33%)** | 9/35 | 11/25 | $0.14 | $0.007 | 21s | 0% | 0 | 0 |
 
-Observations: _TBD_
+Observations:
+
+- **Polyglot separates the tiers.** Strong solved 80% and weak 33%, after our own tasks showed no gap at all. This benchmark is usable for routing decisions.
+- **Auto lands between the two:** 47% quality at 35% of strong's cost. It recovers 8 of the 28 solves weak misses, which is about 29% of the gap.
+- **Auto's quality comes entirely from the turn-start decision.**
+
+  | auto, by start tier | runs | solved | escalated |
+  |---|---|---|---|
+  | started on strong (keyword hit) | 18 | 14 (78%) | 0 |
+  | started on weak | 42 | 14 (33%) | 0 |
+
+  When auto starts on strong, it performs like strong. When it starts on weak, it performs exactly like weak.
+- **Escalation never fired in 180 runs,** although 28 of the 42 weak-start auto runs failed. In a one-shot task with hidden tests, the weak model writes code, perhaps runs an ad-hoc check, and declares success. Nothing looks like the errors or loops the escalation rule watches for. This is the biggest finding: the mid-turn safety net doesn't catch "confidently wrong".
+- **One rep is noisy per exercise.** Auto (weak start) failed 4 exercises that plain weak solved: `javascript/ocr-numbers`, `scale-generator`, `sum-of-multiples` and `python/bottle-song`. Auto also solved 2 that strong failed: `python/dot-dsl` and `hangman`. Only the aggregate numbers mean anything.
+- **10 exercises failed on every config:** 9 JS and `python/go-counting`. I spot-checked 5. They are real failures where the tests require details the instructions don't state, for example `binary` must return `null` for invalid input. Aider's second try (with test output) exists for exactly this. We chose one try, so these exercises affect all configs equally.
+- **JS is harder than Python here for every config** (strong 74% vs 88%, weak 26% vs 44%).
+- **3 runs ended with an OpenCode exit code of 1** after about 60s, each with `InterruptError: All fibers interrupted` in its log, right after the agent ran an ad-hoc Python script: `javascript/rational-numbers` weak, `python/hangman` strong and `python/pov` weak. `pov` still solved, so the work had been written. The cause is not investigated.
+- `javascript/ledger` (passes as given) was solved by all three configs, as expected.
 
 ## Open questions / next steps
 
-1. **Paid Polyglot run.** Waiting for the user's go.
-2. Once there are results, decide which router fixes from report 06 matter: subagent routing, escalation on file contents, and give-up detection.
-3. Possibly add the other four Polyglot languages, if the Python/JS results are worth extending.
+1. **The turn-start decision is where quality is won or lost, and escalation adds nothing on this workload.** The next router work should go into choosing strong at turn start for hard tasks, using more than keywords. Possible options are prompt length, the kind of task, or a cheap classifier call. Our own tasks never tested this, because their prompts had to read naturally.
+2. **The fixes from report 06, reassessed:**
+   - *Subagent routing:* no evidence here either way.
+   - *Escalation on file contents:* moot here, since escalation never fired.
+   - *Give-up detection:* not seen. Every run produced a diff.
+3. The `InterruptError` exits (3/180), if they recur.
+4. More reps on the same 60 exercises (about $2.70 each) would tighten the numbers. That's only worth doing once the router changes.
+5. Possibly add the other four Polyglot languages.
