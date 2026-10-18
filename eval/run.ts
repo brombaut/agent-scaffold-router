@@ -29,12 +29,14 @@ Commands (all take --suite tasks|polyglot; default tasks, our own TypeScript tas
   list                            List the tasks.
   self-check [--tasks a,b]        Free: checks each task fails as given and passes with its reference solution.
   run (--mock | --live --budget USD) [--tasks a,b] [--configs auto,strong,weak]
-      [--reps N] [--timeout SECONDS] [--capture] [--hide-tests]
+      [--reps N] [--timeout SECONDS] [--capture] [--hide-tests] [--followup]
                                   --mock: fake upstream, costs nothing, every task fails (pipeline smoke test).
                                   --live: real Zen calls. Stops, and refuses further upstream calls,
                                   once logged spend reaches --budget.
                                   --hide-tests: the agent's workspace has no test/ dir (it is put
                                   back for the check), and tasks use hiddenPrompt if they have one.
+                                  --followup: when turn 1 fails, send the test output as a second
+                                  user message in the same session (Aider's second try).
   summarize <run dir>             Rebuild summary.md from a run's results.jsonl.
 `;
 
@@ -56,14 +58,16 @@ export interface Task {
   protect: string[];
   /** Paths always left out of the workspace (e.g. the reference solution). */
   hide: string[];
+  /** Files the agent is asked to edit, named in the follow-up message. */
+  editFiles: string[];
   /** Reference solution for self-check: copied from [0] to workspace path [1]. */
   solution: [string, string];
 }
 
-const SUITES = ["tasks", "polyglot"] as const;
-type Suite = (typeof SUITES)[number];
+export const SUITES = ["tasks", "polyglot"] as const;
+export type Suite = (typeof SUITES)[number];
 
-async function loadTasks(suite: Suite, only?: string[]): Promise<Task[]> {
+export async function loadTasks(suite: Suite, only?: string[]): Promise<Task[]> {
   const ids =
     suite === "tasks"
       ? (await readdir(TASKS_DIR)).sort()
@@ -77,7 +81,7 @@ async function loadTasks(suite: Suite, only?: string[]): Promise<Task[]> {
 async function loadLocalTask(id: string): Promise<Task> {
   const dir = join(TASKS_DIR, id);
   const meta = await Bun.file(join(dir, "task.json")).json();
-  return { id, language: "typescript", check: ["bun", "test"], protect: ["test"], hide: [], repo: join(dir, "repo"), solution: [join(dir, "solution"), "."], ...meta };
+  return { id, language: "typescript", check: ["bun", "test"], protect: ["test"], hide: [], editFiles: [], repo: join(dir, "repo"), solution: [join(dir, "solution"), "."], ...meta };
 }
 
 /**
@@ -89,6 +93,7 @@ async function loadPolyglotTask(id: string): Promise<Task> {
   const [language, name] = id.split("/") as [string, string];
   const dir = join(POLYGLOT_DIR, language, "exercises/practice", name);
   const { files } = await Bun.file(join(dir, ".meta/config.json")).json();
+  const editFiles = files.solution.map((f: string) => f.split("/").pop());
   const docs = async (f: string) => {
     const file = Bun.file(join(dir, ".docs", f));
     return (await file.exists()) ? file.text() : "";
@@ -100,7 +105,7 @@ async function loadPolyglotTask(id: string): Promise<Task> {
     `
 ####
 
-Use the above instructions to modify the supplied files: ${files.solution.map((f: string) => f.split("/").pop()).join(" ")}
+Use the above instructions to modify the supplied files: ${editFiles.join(" ")}
 Don't change the names of existing functions or classes, as they may be referenced from other code like unit tests, etc.
 Only use standard libraries, don't suggest installing any packages.
 `;
@@ -120,6 +125,7 @@ Only use standard libraries, don't suggest installing any packages.
     repo: dir,
     protect: files.test,
     hide: [".meta", ".docs", ...files.test],
+    editFiles,
     solution: [join(dir, files.example[0]), files.solution[0]],
   };
 }
@@ -190,7 +196,10 @@ export interface RunResult {
   language: string;
   config: RouterConfig;
   rep: number;
+  /** Final outcome; with --followup, after the follow-up turn if there was one. */
   solved: boolean;
+  solvedFirst: boolean;
+  turns: number;
   checkExit: number;
   opencodeExit: number | null;
   timedOut: boolean;
@@ -210,6 +219,8 @@ export interface RunResult {
   /** Tier and reason of the first agent request (the turn-start decision). */
   startTier: string | null;
   startReason: string | null;
+  /** Tier auto picked when the follow-up message arrived. */
+  followupTier: string | null;
   escalated: boolean;
   diffStat: string;
   dir: string;
@@ -225,6 +236,20 @@ interface RunOptions {
   timeoutSec: number;
   capture: boolean;
   hideTests: boolean;
+  followup: boolean;
+}
+
+/** Aider's second-try message (benchmark/prompts.py test_failures) after the test output. */
+function followupPrompt(task: Task, output: string): string {
+  // ponytail: keeps the last 20k chars; Aider sends the output uncapped.
+  const out = output.length > 20_000 ? output.slice(-20_000) : output;
+  return `${out.replace(/\bin \d+\.\d+s\b/g, "")}
+####
+
+See the testing errors above.
+The tests are correct, don't try and change them.
+Fix the code${task.editFiles.length ? ` in ${task.editFiles.join(" ")}` : ""} to resolve the errors.
+`;
 }
 
 function findSessionId(stdout: string): string | null {
@@ -323,36 +348,53 @@ async function run(opts: RunOptions): Promise<void> {
 
         current = { lines: [], proc: null, budgetStopped: false };
         const started = performance.now();
-        const proc = Bun.spawn(
-          [opencode, "run", "--standalone", "--auto", "--format", "json", "--print-logs", "--log-level", "error", "-m", `router/${config}`, opts.hideTests ? (task.hiddenPrompt ?? task.prompt) : task.prompt],
-          { cwd: ws, env, stdout: "pipe", stderr: "pipe" },
-        );
-        current.proc = proc;
-        let timedOut = false;
-        const timer = setTimeout(() => {
-          timedOut = true;
-          proc.kill();
-        }, opts.timeoutSec * 1000);
-        const [stdout, stderr, exit] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
-        clearTimeout(timer);
+        let prompt = opts.hideTests ? (task.hiddenPrompt ?? task.prompt) : task.prompt;
+        let [stdout, stderr, session, timedOut, turns] = ["", "", null as string | null, false, 0];
+        let exit: number | null = null;
+        let diffStat = "";
+        let check: Awaited<ReturnType<typeof runCheck>>;
+        let solvedFirst = false;
+        // Turn 1 is the task. With --followup, a failed turn 1 gets one more user
+        // message in the same session: the test output, as Aider's second try sends it.
+        while (true) {
+          turns++;
+          const proc = Bun.spawn(
+            [opencode, "run", "--standalone", "--auto", "--format", "json", "--print-logs", "--log-level", "error", ...(session ? ["--session", session] : []), "-m", `router/${config}`, prompt],
+            { cwd: ws, env, stdout: "pipe", stderr: "pipe" },
+          );
+          current.proc = proc;
+          const timer = setTimeout(() => {
+            timedOut = true;
+            proc.kill();
+          }, opts.timeoutSec * 1000);
+          const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+          clearTimeout(timer);
+          [stdout, stderr, exit] = [stdout + out, stderr + err, code];
+          session ??= findSessionId(out);
+          // Log lines are written after each response stream ends; wait for stragglers.
+          for (let i = 0; i < 100 && inFlight > 0; i++) await Bun.sleep(100);
+
+          await sh(["git", "add", "-A"], ws);
+          const diff = await sh(["git", "diff", "--cached"], ws);
+          diffStat = (await sh(["git", "diff", "--cached", "--shortstat"], ws)).stdout.trim();
+          await writeFile(join(dir, "diff.patch"), diff.stdout);
+          await restoreProtected(task, ws);
+          check = await runCheck(task, ws);
+          await writeFile(join(dir, turns === 1 ? "check.txt" : `check-${turns}.txt`), check.output);
+          if (turns === 1) solvedFirst = check.passed;
+          if (check.passed || !opts.followup || turns === 2 || current.budgetStopped || timedOut || !session) break;
+          for (const p of [...task.hide, ...(opts.hideTests ? task.protect : [])]) await rm(join(ws, p), { recursive: true, force: true });
+          prompt = followupPrompt(task, check.output);
+        }
         const wallMs = Math.round(performance.now() - started);
-        // Log lines are written after each response stream ends; wait for stragglers.
-        for (let i = 0; i < 100 && inFlight > 0; i++) await Bun.sleep(100);
         const { lines, budgetStopped } = current;
         current = null;
 
         await writeFile(join(dir, "opencode.jsonl"), stdout);
         await writeFile(join(dir, "opencode.err.log"), stderr);
-        await sh(["git", "add", "-A"], ws);
-        const diff = await sh(["git", "diff", "--cached"], ws);
-        const diffStat = (await sh(["git", "diff", "--cached", "--shortstat"], ws)).stdout.trim();
-        await writeFile(join(dir, "diff.patch"), diff.stdout);
-        await restoreProtected(task, ws);
-        const check = await runCheck(task, ws);
-        await writeFile(join(dir, "check.txt"), check.output);
 
         const totals = aggregate(lines).total;
-        const start = lines.find((l) => l.kind === "agent" && l.isTurnStart);
+        const [start, followupStart] = lines.filter((l) => l.kind === "agent" && l.isTurnStart);
         const result: RunResult = {
           task: task.id,
           difficulty: task.difficulty,
@@ -360,12 +402,14 @@ async function run(opts: RunOptions): Promise<void> {
           config,
           rep,
           solved: check.passed,
+          solvedFirst,
+          turns,
           checkExit: check.code,
           opencodeExit: exit,
           timedOut,
           budgetStopped,
           wallMs,
-          opencodeSession: findSessionId(stdout),
+          opencodeSession: session,
           sessionKeys: [...new Set(lines.map((l) => l.sessionKey).filter((k): k is string => !!k))],
           requests: totals.requests,
           strongRequests: totals.strongRequests,
@@ -377,6 +421,7 @@ async function run(opts: RunOptions): Promise<void> {
           errors: totals.errors,
           startTier: start?.tier ?? null,
           startReason: start?.reason ?? null,
+          followupTier: followupStart?.tier ?? null,
           escalated: lines.some((l) => l.reason?.startsWith("escalate:")),
           diffStat,
           dir,
@@ -384,7 +429,7 @@ async function run(opts: RunOptions): Promise<void> {
         results.push(result);
         await writeFile(join(dir, "result.json"), JSON.stringify(result, null, 2));
         await Bun.write(join(runDir, "results.jsonl"), results.map((r) => JSON.stringify(r)).join("\n") + "\n");
-        const flags = [timedOut && "TIMEOUT", budgetStopped && "BUDGET", result.escalated && "escalated", exit !== 0 && `exit=${exit}`].filter(Boolean);
+        const flags = [turns > 1 && `turn2=${result.followupTier}`, timedOut && "TIMEOUT", budgetStopped && "BUDGET", result.escalated && "escalated", exit !== 0 && `exit=${exit}`].filter(Boolean);
         console.log(
           `${result.solved ? "PASS" : "fail"}  ${task.id.padEnd(30)} ${config.padEnd(6)} r${rep}  $${result.costUSD.toFixed(4)}  ${(wallMs / 1000).toFixed(0)}s  ${result.requests} req  start=${result.startTier ?? "-"}  total=$${spent.toFixed(4)}  ${flags.join(" ")}`,
         );
@@ -417,6 +462,7 @@ function table(header: string[], rows: string[][]): string {
 export function summarize(results: RunResult[]): string {
   const lang = (r: RunResult) => r.language ?? "typescript"; // runs before 2026-10-17 have no language
   const languages = [...new Set(results.map(lang))].sort();
+  const followups = results.some((r) => (r.turns ?? 1) > 1);
   const configs = CONFIGS.filter((c) => results.some((r) => r.config === c));
   const byConfig = configs.map((c) => {
     const rs = results.filter((r) => r.config === c);
@@ -431,6 +477,7 @@ export function summarize(results: RunResult[]): string {
     return [
       c,
       `${solved}/${rs.length} (${pct(solved, rs.length)})`,
+      ...(followups ? [`${rs.filter((r) => r.solvedFirst).length}/${rs.length}`] : []),
       `${easy.filter((r) => r.solved).length}/${easy.length}`,
       `${hard.filter((r) => r.solved).length}/${hard.length}`,
       ...(languages.length > 1 ? languages.map((l) => `${rs.filter((r) => lang(r) === l && r.solved).length}/${rs.filter((r) => lang(r) === l).length}`) : []),
@@ -451,7 +498,7 @@ export function summarize(results: RunResult[]): string {
   const perTask = tasks.map((t) => {
     const rs = results.filter((r) => r.task === t);
     const auto = rs.filter((r) => r.config === "auto");
-    const autoStart = [...new Set(auto.map((r) => `${r.startTier ?? "-"}${r.escalated ? "→esc" : ""}`))].join(", ");
+    const autoStart = [...new Set(auto.map((r) => `${r.startTier ?? "-"}${r.escalated ? "→esc" : ""}${r.followupTier ? `, turn 2: ${r.followupTier}` : ""}`))].join(", ");
     return [t, lang(rs[0]!), rs[0]!.difficulty, ...configs.map((c) => cell(rs.filter((r) => r.config === c))), autoStart || "-"];
   });
 
@@ -461,7 +508,7 @@ export function summarize(results: RunResult[]): string {
     ``,
     `${results.length} run(s), total spend ${usd(total)}.`,
     ``,
-    table(["config", "solved", "easy", "hard", ...(languages.length > 1 ? languages : []), "cost", "$/solved", "median wall", "% strong reqs", "cache read", "escalated", "req errors", "cut short"], byConfig),
+    table(["config", "solved", ...(followups ? ["1st turn"] : []), "easy", "hard", ...(languages.length > 1 ? languages : []), "cost", "$/solved", "median wall", "% strong reqs", "cache read", "escalated", "req errors", "cut short"], byConfig),
     ``,
     `Per task (solved/runs, mean cost per run; "auto start" is the tier auto picked at turn start):`,
     ``,
@@ -521,6 +568,7 @@ if (import.meta.main) {
         timeoutSec: Number(flag(args, "--timeout") ?? 600),
         capture: args.includes("--capture"),
         hideTests: args.includes("--hide-tests"),
+        followup: args.includes("--followup"),
       });
       break;
     }

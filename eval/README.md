@@ -20,11 +20,12 @@ bun eval/run.ts run --mock --tasks greeting-typo   # free: fake upstream, smoke-
 bun eval/run.ts run --live --budget 5              # real Zen calls; spends money
 bun eval/run.ts summarize eval/runs/<stamp>
 bun eval/replay.ts eval/runs/<stamp> [decisions.json]   # free: prices a weak/strong pick per task against a finished run (spec 003)
+bun eval/classify.ts --model weak|strong --budget 0.5   # paid, tiny: turn-start classifier on each prompt → eval/runs/classify/ (spec 003)
 ```
 
 Polyglot suite ([spec 002](../docs/specs/002-polyglot-eval.md)): run `eval/polyglot.sh` once (clones the benchmark, builds the `asr-polyglot` Docker image), then add `--suite polyglot` to `list`, `self-check` or `run`.
 
-Options for `run`: `--suite tasks|polyglot`, `--tasks a,b`, `--configs auto,strong,weak`, `--reps N`, `--timeout SECONDS` (default 600) `--capture` (save request and response bodies) and `--hide-tests` (see below).
+Options for `run`: `--suite tasks|polyglot`, `--tasks a,b`, `--configs auto,strong,weak`, `--reps N`, `--timeout SECONDS` (default 600) `--capture` (save request and response bodies), `--hide-tests` (see below) and `--followup` (when turn 1 fails, send the test output plus Aider's second-try message as a second user message in the same OpenCode session; `solved` is the final outcome and `solvedFirst` the turn-1 one).
 
 ## Design notes
 
