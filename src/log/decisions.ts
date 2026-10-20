@@ -30,6 +30,16 @@ export interface DecisionLogLine {
   latencyMs: number;
   ttftMs: number | null;
   error: string | null;
+  /** Classifier experiment (spec 003); only when policy.classifier.mode isn't "off". */
+  arm?: "on" | "shadow";
+  classifierTier?: TierName;
+  /** What the keyword heuristic would pick for this turn. */
+  heuristicTier?: TierName;
+  /** Set only on the request that made the classifier call, so it's counted once. */
+  classifierCostUSD?: number;
+  classifierRaw?: string;
+  /** Start of the user message, on the request that made the classifier call. */
+  turnPreview?: string;
   /** Request shape summary; only written when body capture is on. */
   shape?: RequestShape;
 }

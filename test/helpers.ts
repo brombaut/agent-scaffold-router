@@ -59,7 +59,7 @@ export function testConfig(baseURL: string, extra: Partial<Config> = {}): Config
 }
 
 /** Starts the proxy and returns a helper that waits for the next log line. */
-export function startProxy(cfg: Config, key: string | null = "test-key", extra: { score?: ServerOptions["score"] } = {}) {
+export function startProxy(cfg: Config, key: string | null = "test-key", extra: Pick<ServerOptions, "score" | "classify"> = {}) {
   const waiters: ((l: DecisionLogLine) => void)[] = [];
   const lines: DecisionLogLine[] = [];
   const server = startServer(cfg, {

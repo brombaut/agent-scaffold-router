@@ -54,6 +54,8 @@ export async function forward(
   base: LogBase,
   started: number,
   deps: ForwardDeps,
+  /** Log fields that resolve later (the classifier in shadow mode); never delays the client. */
+  late?: Promise<Partial<DecisionLogLine>>,
 ): Promise<Response> {
   const { cfg } = deps;
 
@@ -65,7 +67,8 @@ export async function forward(
   if (auth) headers.set("authorization", auth);
 
   const finish = async (rest: Omit<DecisionLogLine, keyof LogBase | "costUSD" | "allStrongCostUSD">) => {
-    const line: DecisionLogLine = { ...base, ...rest, ...priced(cfg, base, rest.usage) };
+    const extra = late ? await late.catch(() => ({})) : {};
+    const line: DecisionLogLine = { ...base, ...extra, ...rest, ...priced(cfg, base, rest.usage) };
     await appendLog(cfg, line);
     deps.onLogged?.(line);
   };

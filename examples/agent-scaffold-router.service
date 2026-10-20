@@ -1,0 +1,17 @@
+# systemd user service: keeps the proxy running in the background.
+# Install (adjust the checkout path in ExecStart/WorkingDirectory if yours differs):
+#   cp examples/agent-scaffold-router.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now agent-scaffold-router
+# Logs: journalctl --user -u agent-scaffold-router
+[Unit]
+Description=agent-scaffold-router (model-routing proxy for OpenCode)
+
+[Service]
+WorkingDirectory=%h/work_personal/agent_scaffold_router
+ExecStart=%h/.bun/bin/bun src/cli.ts serve
+# bun, and opencode (the proxy reads your Zen key via `opencode auth export`).
+Environment=PATH=%h/.bun/bin:%h/.opencode/bin:/usr/local/bin:/usr/bin:/bin
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

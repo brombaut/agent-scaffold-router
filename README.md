@@ -33,13 +33,9 @@ Requirements: [Bun](https://bun.sh) ≥ 1.1, OpenCode v2 (`curl -fsSL https://op
    bun src/cli.ts serve          # once published: bunx agent-scaffold-router serve
    ```
 
-3. **Point OpenCode at it** by copying [`examples/opencode.jsonc`](examples/opencode.jsonc) into your project's `opencode.jsonc` (or `~/.config/opencode/opencode.jsonc`). Then pick **`router/auto`** with `/models`, or run:
+   To keep it running in the background, install [`examples/agent-scaffold-router.service`](examples/agent-scaffold-router.service) as a systemd user service (instructions in the file).
 
-   ```sh
-   ASR_CLIENT_KEY=unused opencode run -m router/auto "explain this repo"
-   ```
-
-   `ASR_CLIENT_KEY` only needs to exist: OpenCode wants a credential for the custom provider, and the proxy replaces it with your real key.
+3. **Point OpenCode at it** by copying [`examples/opencode.jsonc`](examples/opencode.jsonc) into your project's `opencode.jsonc` (or `~/.config/opencode/opencode.jsonc`). It makes **`router/auto`** the default model; `/models` switches to `router/strong` or `router/weak`. The provider's `apiKey` is a placeholder that the proxy replaces with your real key.
 
 4. **See what it did:**
 
@@ -99,7 +95,8 @@ Optional: `~/.config/agent-scaffold-router/config.json`. Every field has a defau
     "strongThreshold": 3,
     "escalation": { "consecutiveToolErrors": 3, "repeatedToolCalls": 3 },
     "titleTier": "weak",
-    "compactionTier": "strong"
+    "compactionTier": "strong",
+    "classifier": { "mode": "off", "model": "strong", "timeoutMs": 10000 }
   },
   "log": { "path": "~/.local/share/agent-scaffold-router/decisions.jsonl", "captureBodies": false }
 }
@@ -108,6 +105,13 @@ Optional: `~/.config/agent-scaffold-router/config.json`. Every field has a defau
 - `policy.granularity: "session"` decides once from the session's first message and holds that tier.
 - `upstream.auth: "forward"` passes OpenCode's own `Authorization` header through, instead of having the proxy inject the key.
 - `policy.keywords.strong` / `policy.keywords.weak` replace the keyword lists.
+- `policy.classifier` (experimental, [spec 003](docs/specs/003-turn-start-decision.md)) makes one call to the `model` tier at the start of each turn, asking whether the message needs strong. Its answer is shared by every request in that turn, and on follow-ups it's told which model handled the previous turn. Modes:
+  - `"off"` (the default): no classifier calls.
+  - `"on"`: routes by the classifier instead of the keyword score. It adds one round trip per turn.
+  - `"shadow"`: routes by the keyword score and logs the classifier's pick, with no added latency.
+  - `"experiment"`: each session is randomly `"on"` or `"shadow"`, for comparing the two.
+
+  When the classifier is running, turn-start log lines carry `arm`, `classifierTier`, `heuristicTier`, `classifierCostUSD` and the first 500 characters of your message (`turnPreview`), so the log can be analyzed afterwards. `report` includes the classifier's cost.
 
 ## Logs and reports
 

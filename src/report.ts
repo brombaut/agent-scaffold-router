@@ -59,7 +59,7 @@ function add(t: Totals, l: DecisionLogLine): void {
     t.cachedReadTokens += l.usage.cachedRead;
     t.outputTokens += l.usage.output;
   }
-  t.costUSD += l.costUSD ?? 0;
+  t.costUSD += (l.costUSD ?? 0) + (l.classifierCostUSD ?? 0);
   t.allStrongCostUSD += l.allStrongCostUSD ?? 0;
   const fam = reasonFamily(l.reason);
   t.reasons[fam] = (t.reasons[fam] ?? 0) + 1;

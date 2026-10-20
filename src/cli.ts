@@ -38,6 +38,8 @@ async function serve(args: string[]) {
   console.log(`agent-scaffold-router listening on http://${server.hostname}:${server.port}/v1`);
   console.log(`  models:   auto, strong (${cfg.tiers.strong.model}), weak (${cfg.tiers.weak.model})`);
   console.log(`  upstream: ${cfg.upstream.baseURL} (auth: ${cfg.upstream.auth})`);
+  const { classifier } = cfg.policy;
+  if (classifier.mode !== "off") console.log(`  classifier: ${classifier.mode} (asks ${cfg.tiers[classifier.model].model})`);
   console.log(`  log:      ${cfg.log.path}${cfg.log.captureBodies ? `\n  capture:  ${cfg.log.captureDir}` : ""}`);
 }
 

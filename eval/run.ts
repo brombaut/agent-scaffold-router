@@ -274,6 +274,8 @@ async function run(opts: RunOptions): Promise<void> {
   const mock = opts.mode === "mock" ? startMockUpstream() : null;
   const cfg = await loadConfig(CONFIG_PATH, {
     port: 0,
+    // The eval measures configs, not the everyday classifier experiment.
+    policy: { classifier: { mode: "off" } },
     ...(mock ? { upstream: { baseURL: mock.baseURL, auth: "inject" as const } } : {}),
     log: { path: join(runDir, "decisions.jsonl"), captureBodies: opts.capture, captureDir: join(runDir, "captures") },
   });

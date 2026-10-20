@@ -25,6 +25,12 @@ export interface Policy {
   titleTier: TierName;
   /** Tier for compaction (summary) requests; these re-read the whole context uncached. */
   compactionTier: TierName;
+  /**
+   * Turn-start classifier (spec 003): one call to `model` per user turn.
+   * "shadow" logs its pick but routes by the heuristic; "on" routes by it;
+   * "experiment" makes each session randomly "on" or "shadow".
+   */
+  classifier: { mode: "off" | "shadow" | "on" | "experiment"; model: TierName; timeoutMs: number };
 }
 
 export interface Config {
@@ -72,6 +78,7 @@ export const DEFAULT_CONFIG: Config = {
     },
     titleTier: "weak",
     compactionTier: "strong",
+    classifier: { mode: "off", model: "strong", timeoutMs: 10_000 },
   },
   log: {
     path: join(dataDir, "decisions.jsonl"),

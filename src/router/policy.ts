@@ -30,6 +30,8 @@ export interface RouteDeps {
   reasoningOwners?: ReasoningOwners;
   /** Swappable for tests (e.g. to inject a classifier failure). */
   score?: typeof scoreMessage;
+  /** Turn-start classifier's pick; when set, it replaces the heuristic. */
+  classifiedTier?: TierName;
 }
 
 /**
@@ -75,8 +77,9 @@ function decide(body: any, requested: VirtualModel, cfg: Config, deps: RouteDeps
   if (override) return { tier: override, reason: `override:!${override}`, turn };
 
   const score = deps.score ?? scoreMessage;
-  const base =
-    policy.granularity === "session"
+  const base = deps.classifiedTier
+    ? { tier: deps.classifiedTier, reason: `classifier:${deps.classifiedTier}` }
+    : policy.granularity === "session"
       ? (({ tier, reason }) => ({ tier, reason: `session:${reason}` }))(score(turn.firstText, policy))
       : score(turn.turnText, policy);
   if (base.tier === "weak") {

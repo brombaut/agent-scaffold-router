@@ -3,15 +3,17 @@
 // start the proxy with `agent-scaffold-router serve`, then pick router/auto.
 {
   "$schema": "https://opencode.ai/config.json",
+  // Default model for new sessions.
+  "model": "router/auto",
   "providers": {
     "router": {
       "name": "Agent Scaffold Router",
-      // The proxy injects the real Zen key, so this variable can hold any placeholder.
-      "env": ["ASR_CLIENT_KEY"],
       // The docs list openai-compatible/responses, but 2.0.22 does not ship it.
       "package": "@opencode/ai/providers/openai/responses",
       "settings": {
         "baseURL": "http://127.0.0.1:8787/v1",
+        // Any placeholder: the proxy replaces it with your real Zen key.
+        "apiKey": "unused",
         // Keep HTTP: a WebSocket transport would send only deltas and bypass per-request routing.
         "transport": "http"
       },
