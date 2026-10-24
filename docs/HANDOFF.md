@@ -20,7 +20,6 @@ A local HTTP proxy between OpenCode v2 and OpenCode Zen. For each **user turn** 
 
 ## 2. Rules you must follow
 
-- **gstack is required.** Run the check in `CLAUDE.md` first. Installed at `~/.claude/skills/gstack`.
 - **Progress reports.** Next file is `docs/progress/10_progress_report.md`. Write one at real milestones (the experiment analysis is the next one). Never edit past reports except to fix factual errors. **Decisions and rationale** matters most.
 - **Git.** Work and commit **on `main`**; no feature branches (user's standing instruction, replaces the old branch workflow). Commit or push only when asked. Commit messages end with the `Co-Authored-By` line from the system prompt.
 - **Don't start a proposed step without an explicit go.** A clarification or "makes sense" is not a go.
@@ -78,7 +77,6 @@ CI: `bun test && bun run typecheck` (58 tests).
 | Zen credential | Stored in OpenCode; the proxy reads it via `opencode auth export`. `OPENCODE_API_KEY` isn't set |
 | Docker image `asr-polyglot` | Built by `eval/polyglot.sh`; runs Polyglot checks with `--network none` |
 | Eval output | `eval/runs/` (gitignored). Polyglot paid run: `eval/runs/2026-10-17T23-33-02/` |
-| gbrain | Local MCP server; often disconnected. Fall back to grep |
 
 ## 7. Gotchas
 
@@ -87,7 +85,7 @@ CI: `bun test && bun run typecheck` (58 tests).
 3. The service holds port 8787, so a hand-run `bun src/cli.ts serve` will clash with it. The eval is fine: its in-process proxy takes a random port (`port: 0`).
 4. Don't remove `dropForeignReasoning`, or Luna → Sol switches fail with HTTP 400.
 5. Zen can return HTTP 200 with an in-stream `error` event.
-6. OpenCode v2 loads skills from `~/.claude/skills`, so everyday sessions include gstack in the prompt; the eval isolates HOME.
+6. OpenCode v2 loads skills from `~/.claude/skills`, so everyday sessions include any skills installed there; the eval isolates HOME.
 7. The heuristic's `files=` count picks up paths in pasted tracebacks, so long pasted errors tend to score strong (report 08).
 8. Costs in `run --mock` output are fake.
 
