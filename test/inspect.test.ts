@@ -57,7 +57,6 @@ describe("ResponsesStreamReader", () => {
       const s = r.end();
       expect(s.usage).toEqual({ input: 120, cachedRead: 100, cacheWrite: 0, output: 7, reasoning: 3 });
       expect(s.responseId).toBe("resp_1");
-      expect(s.eventTypes["response.completed"]).toBe(1);
     }
   });
 

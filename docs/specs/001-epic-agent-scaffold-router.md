@@ -1,7 +1,8 @@
 # Epic: Agent Scaffold Router v1 (OpenCode, Responses API, strong/weak routing)
 
-> **Status:** DRAFT (Phase 4 of `/spec`). Not yet filed.
-> **Verified:** 2026-10-02. Research background: `docs/progress/00_progress_report.md`.
+> **Historical design (2026-10-02):** originally a draft epic; v1, the eval harness and the classifier have since been built. The original design below is preserved, not a current implementation/status checklist.
+> **Current setup:** use the [README](../../README.md) and [`examples/opencode.jsonc`](../../examples/opencode.jsonc), not the proposed provider/auth config below. Results and later scope: reports [07](../progress/07_progress_report.md) (Polyglot), [08](../progress/08_progress_report.md) (classifier), [09](../progress/09_progress_report.md) (everyday experiment) and [10](../progress/10_progress_report.md) (dashboard, outside this original epic).
+> **Original verification:** 2026-10-02. Research background: `docs/progress/00_progress_report.md`.
 
 ## Context
 
@@ -20,7 +21,7 @@ Goals, in priority order:
 No deadline; open-ended exploration. v1 bar: **it runs live in daily OpenCode use
 and logs decisions.** Evaluation is a follow-on child issue.
 
-## Current State (verified 2026-10-02)
+## Historical starting state (verified 2026-10-02)
 
 | Fact | Evidence |
 |---|---|
@@ -207,7 +208,9 @@ interface DecisionLogLine {
 `~/.local/share/agent-scaffold-router/captures/<requestId>.json` with
 `Authorization` removed (for debugging and child #1 investigation only).
 
-#### OpenCode wiring (exact v2 config shape verified in child #1)
+#### Original proposed OpenCode wiring (superseded)
+
+This historical sketch is not the installed v2 config. Use [`examples/opencode.jsonc`](../../examples/opencode.jsonc) and the [README setup instructions](../../README.md#quick-start); report [09](../progress/09_progress_report.md) records the later placeholder-key configuration.
 
 ```jsonc
 // opencode.json (provider block; shape to verify against v2 docs)
@@ -317,7 +320,7 @@ in `opencode.json`) and stop the proxy. No shared state, no data migration.
 | #4 packaging + docs + CI | 0.5d | 30m |
 | **Total** | **5d** | **~3.75h** |
 
-## Files Reference (to be created)
+## Original planned files reference
 
 | File | Purpose |
 |---|---|

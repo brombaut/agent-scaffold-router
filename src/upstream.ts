@@ -125,7 +125,6 @@ export async function forward(
           ...summary,
           usage: parseUsage(j.usage),
           responseId: j.id ?? null,
-          model: j.model ?? null,
           error: j.error ?? null,
           reasoningIds: reasoningIdsOf(j.output),
         };

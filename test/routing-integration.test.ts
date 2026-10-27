@@ -78,7 +78,7 @@ describe("routing through the proxy", () => {
     expect(a).toBe(b!);
   });
 
-  test("acceptance 6: a classifier exception routes to strong and the request still succeeds", async () => {
+  test("acceptance 6: a heuristic scorer exception routes to strong and the request still succeeds", async () => {
     const { up, proxy } = setup({
       score: () => {
         throw new Error("injected");

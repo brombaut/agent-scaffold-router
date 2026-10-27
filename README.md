@@ -127,6 +127,79 @@ The "all-strong" figure reprices the same tokens. A real all-strong session woul
 
 `serve --capture` also writes each forwarded request body, its headers (with credentials removed) and the raw response under `~/.local/share/agent-scaffold-router/captures/`. **Captures contain your code and prompts**; use this only for debugging.
 
+## Local dashboard
+
+```sh
+bun src/cli.ts dashboard               # http://127.0.0.1:8788
+bun src/cli.ts dashboard --port 8790    # optional separate port
+```
+
+The dashboard reads the configured `log.path` and polls every **one second**. It is a
+separate, read-only Bun server: no proxy restart, credentials, or changes to routing
+or the running classifier experiment. Stop it with Ctrl-C. Missing logs show an empty
+state and appear automatically when the file is created.
+
+The compact, dark dashboard is organized around questions, not internal experiment
+terminology. Small means the weak tier; Strong means the strong tier. A user message
+can trigger several model calls. Select all history or the last 24 hours, 7 days, or 30 days.
+
+- **Overview — is routing helping?** A live timeline shows each completed model call
+  over a rolling 5-, 15-, or 60-minute window (5 minutes by default); new Small or Strong
+  calls briefly pulse in their tier color. The window keeps sliding during idle periods,
+  with old calls expiring automatically; new log entries are still fetched every second.
+  Three graphs follow: cumulative recorded
+  spend versus the same-token Strong-only estimate, daily Small and Strong call-count
+  lines, and four AI-versus-rules choice counts. Unknown-tier calls are listed separately. Cumulative spending starts at
+  the beginning of the selected range, not the beginning of all history. Missing pricing
+  is flagged. Below are conversation/message/call counts and the latest 80 completed
+  model calls with readable reasons. Expand a call for its exact reason, upstream model,
+  raw conversation ID, and latency; detailed routing counts remain expandable.
+- **Spending — what is it costing?** Recorded spend, estimated savings, and a daily
+  spending chart. The comparison estimates what the same tokens would cost using
+  Strong for every call. Individual call costs exclude the AI's selection fees;
+  spending totals include them. Incomplete pricing is explicitly flagged.
+- **Conversations — what happened during my task?** Sort by recency, cost, message count,
+  or model changes. Model-history marks are grouped by user message. Open a conversation
+  and expand a message for its private preview and routing details. Changes between
+  messages compare the previous message's **final** model tier with the next one's
+  initial tier; switches while handling a single message are shown separately.
+- **Routing comparison — does AI choose differently from the rules?** “AI-selected
+  conversations” use the classifier's choice (`on` in the log). “Rule-selected
+  conversations” use keyword rules while recording, but not using, the AI prediction
+  (`shadow` in the log). The UI explains these groups without requiring log terminology.
+  Counts show conversations and evaluated user messages, plus how often suggestions
+  differed and concrete examples. Historical entries without an `arm` are excluded;
+  tool-call round trips do not create new comparisons. Four choice counts distinguish
+  both choosing Small, both choosing Strong, and each direction of disagreement.
+  Different choices do **not** establish better task results.
+
+  Conversation links show a whitespace-normalized excerpt (at most 72 characters)
+  of the first recorded nonblank message, not a generated title. This label is shared
+  across views and retained across date filters using the full log only for identity.
+  When no preview was recorded, a stable label such as “Conversation a12b34” is used.
+  Full recorded previews remain in expanded message details; no paid model calls or
+  additional files are used to name conversations.
+- **Response timing** (secondary diagnostics): latency and response-header timing,
+  sample counts, errors (including errors inside HTTP 200 streams), all statuses,
+  and failed-call details. The existing `ttftMs` log field measures upstream response
+  headers, **not the first token**; the UI labels it accordingly without changing
+  the proxy's instrumentation.
+
+Parsing and cost totals reuse `src/report.ts`. Actual cost includes the classifier;
+its cost is also shown separately. Calls without recorded costs are counted and flagged
+as incomplete coverage, not presented as free. The all-strong figure reprices the same tokens,
+not a separate all-strong session. Charts show only days with activity, and per-day
+session counts are active sessions (not necessarily new sessions). Date filtering
+can include partial turns; turn counts follow the report's logged agent turn-starts.
+Session dates show first activity **in the selected period**, not necessarily the session's creation.
+Only completed/logged requests are visible—this is not an in-flight request monitor.
+
+**Privacy:** it binds to `127.0.0.1` only and serves its own HTML, scripts, and styles,
+with no CDN or external calls. API responses are not cached; cross-origin requests
+and foreign Host headers are rejected. Previews and error text are rendered as text,
+not HTML. Anyone with access to your local dashboard can see the previews; don't
+expose the port through tunnels or port forwarding.
+
 ## Caveats
 
 - **Keep `settings.transport: "http"`** in the provider config. A WebSocket transport sends only deltas, which bypasses per-request routing.

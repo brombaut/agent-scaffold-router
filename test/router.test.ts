@@ -218,7 +218,7 @@ describe("route", () => {
     expect(toWeak.input.filter((i: any) => i.type === "reasoning")).toEqual([lunaRs]);
   });
 
-  test("a classifier exception fails open to strong", () => {
+  test("a heuristic scorer exception fails open to strong", () => {
     const body = req("auto", [user("show me the readme")]);
     const d = route(body, cfg, {
       score: () => {

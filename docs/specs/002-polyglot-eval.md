@@ -1,7 +1,10 @@
 # 002 — Plan: evaluate the router on Aider Polyglot's exercises
 
 **Date:** 2026-10-16
-**Status:** built 2026-10-17 (see [eval README](../../eval/README.md#polyglot-suite)). The paid run needs the user's explicit go.
+
+> **Historical plan:** built and the initial paid run completed on 2026-10-17; see [report 07](../progress/07_progress_report.md) for results. The original scope, estimates and one-try rationale below are preserved as design history, not a pending approval request.
+> **Current usage:** see the [eval README](../../eval/README.md#polyglot-suite). One try remains the default; optional `--followup` was added later ([report 08](../progress/08_progress_report.md)). The classifier and everyday experiment followed in reports [08](../progress/08_progress_report.md)–[09](../progress/09_progress_report.md); the dashboard is in [report 10](../progress/10_progress_report.md). Any new paid run still needs explicit approval and a budget.
+
 **Context:** [progress report 06](../progress/06_progress_report.md), [eval README](../../eval/README.md)
 
 ## Why

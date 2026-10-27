@@ -1,7 +1,10 @@
 # 003 — Plan: a better turn-start decision
 
 **Date:** 2026-10-18
-**Status:** plan only. Nothing is built, and every paid step needs the user's explicit go.
+
+> **Historical plan (2026-10-18):** replay, classifier and optional `--followup` are now built ([report 08](../progress/08_progress_report.md)). The classifier tied the heuristic on Polyglot, so the held-out/live Polyglot steps below were not pursued. It was subsequently wired into the proxy for the everyday-use experiment ([report 09](../progress/09_progress_report.md)); experiment analysis remains pending.
+> **Current configuration:** use `policy.classifier` (not the proposed `policy.turnStart` below), as documented in the [README](../../README.md#configuration). Use [`examples/opencode.jsonc`](../../examples/opencode.jsonc) for OpenCode setup and the [eval README](../../eval/README.md) for runner behavior, including its forced classifier-off mode. [Report 10](../progress/10_progress_report.md) covers the later dashboard. The original proposal, estimates and questions below are preserved as history; any new paid step still requires explicit approval and a budget.
+
 **Context:** [progress report 07](../progress/07_progress_report.md) (Polyglot results)
 
 ## Why

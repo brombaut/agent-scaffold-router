@@ -2,6 +2,7 @@
 import { resolveApiKey } from "./auth.ts";
 import { loadConfig } from "./config.ts";
 import { aggregate, formatReport, parseLog } from "./report.ts";
+import { startDashboardServer } from "./dashboard/server.ts";
 import { startServer } from "./server.ts";
 
 const USAGE = `agent-scaffold-router <command>
@@ -11,6 +12,7 @@ Commands:
                                      --capture writes request/response bodies to the capture dir.
   report [--since ISO] [--json]      Summarize decisions.jsonl per session and in total:
                                      requests, % strong, cache-read ratio, cost, all-strong cost, savings.
+  dashboard [--port N]               Start the local dashboard on 127.0.0.1:8788 (refreshes every second).
 `;
 
 function flag(args: string[], name: string): string | undefined {
@@ -56,6 +58,20 @@ async function report(args: string[]) {
   console.log(args.includes("--json") ? JSON.stringify(result, null, 2) : formatReport(result));
 }
 
+async function dashboard(args: string[]) {
+  const rawPort = flag(args, "--port");
+  const port = rawPort === undefined ? 8788 : Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    console.error("Dashboard port must be an integer between 1 and 65535.");
+    process.exit(1);
+  }
+  const cfg = await loadConfig();
+  const server = startDashboardServer(cfg, { port });
+  console.log(`Dashboard: http://${server.hostname}:${server.port}/`);
+  console.log(`  refresh: every 1 second`);
+  console.log(`  log:     ${cfg.log.path}`);
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 switch (cmd) {
   case "serve":
@@ -63,6 +79,9 @@ switch (cmd) {
     break;
   case "report":
     await report(rest);
+    break;
+  case "dashboard":
+    await dashboard(rest);
     break;
   default:
     console.log(USAGE);

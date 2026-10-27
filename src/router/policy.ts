@@ -28,7 +28,7 @@ export interface RouteDeps {
   memory?: SessionMemory;
   /** Which model produced each reasoning item seen in a response. */
   reasoningOwners?: ReasoningOwners;
-  /** Swappable for tests (e.g. to inject a classifier failure). */
+  /** Swappable for tests (e.g. to inject a heuristic scorer failure). */
   score?: typeof scoreMessage;
   /** Turn-start classifier's pick; when set, it replaces the heuristic. */
   classifiedTier?: TierName;

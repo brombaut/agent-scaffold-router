@@ -22,9 +22,7 @@ export function parseUsage(u: any): Usage | null {
 export interface StreamSummary {
   usage: Usage | null;
   responseId: string | null;
-  model: string | null;
   error: unknown;
-  eventTypes: Record<string, number>;
   /** IDs of reasoning items the model emitted (so the router knows which model owns them). */
   reasoningIds: string[];
 }
@@ -44,9 +42,7 @@ export class ResponsesStreamReader {
   readonly summary: StreamSummary = {
     usage: null,
     responseId: null,
-    model: null,
     error: null,
-    eventTypes: {},
     reasoningIds: [],
   };
 
@@ -84,11 +80,9 @@ export class ResponsesStreamReader {
       return;
     }
     const type = typeof evt.type === "string" ? evt.type : "unknown";
-    this.summary.eventTypes[type] = (this.summary.eventTypes[type] ?? 0) + 1;
     const resp = evt.response;
     if (resp && typeof resp === "object") {
       this.summary.responseId = resp.id ?? this.summary.responseId;
-      this.summary.model = resp.model ?? this.summary.model;
       if (resp.usage) this.summary.usage = parseUsage(resp.usage);
       for (const id of reasoningIdsOf(resp.output)) this.addReasoningId(id);
       if (resp.error) this.summary.error = resp.error;

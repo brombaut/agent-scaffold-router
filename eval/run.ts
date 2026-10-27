@@ -323,7 +323,6 @@ async function run(opts: RunOptions): Promise<void> {
     XDG_CACHE_HOME: join(home, ".cache"),
     XDG_STATE_HOME: join(home, ".local/state"),
     TERM: "dumb",
-    ASR_CLIENT_KEY: "unused",
   };
   const opencode = Bun.which("opencode", { PATH: process.env.PATH }) ?? join(process.env.HOME ?? "", ".opencode/bin/opencode");
 

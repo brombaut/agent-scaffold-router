@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scaffold Router</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --canvas: #111315;
+      --sidebar: #0c0e0f;
+      --surface: #171a1c;
+      --surface-raised: #1c2022;
+      --ink: #e4e8e4;
+      --quiet: #9aa29c;
+      --rule: #303638;
+      --small: #72B7F2;
+      --strong: #F2C85B;
+      --error: #ef8d83;
+      --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { min-width: 320px; background: var(--canvas); }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font: 13px/1.5 system-ui, -apple-system, sans-serif; }
+    button, select { font: inherit; color: inherit; }
+    button { cursor: pointer; background: none; border: 0; padding: 0; }
+    button:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--small); outline-offset: 3px; }
+    select { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 6px 28px 6px 9px; }
+    a { color: inherit; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 20px; line-height: 1.25; font-weight: 650; letter-spacing: -.02em; }
+    h2 { font-size: 16px; line-height: 1.35; font-weight: 620; }
+    h3 { font-size: 13px; font-weight: 620; }
+    .frame { min-height: 100vh; display: grid; grid-template-columns: 185px minmax(0, 1fr); }
+    .sidebar { background: var(--sidebar); border-right: 1px solid #252a2b; padding: 19px 12px; display: flex; flex-direction: column; gap: 27px; }
+    .wordmark { padding: 0 8px; font-size: 13px; font-weight: 700; letter-spacing: -.015em; }
+    .brand-mark { display: inline-grid; place-items: center; width: 21px; height: 21px; margin-right: 7px; border: 1px solid var(--small); border-radius: 5px; color: var(--small); font: 12px var(--mono); vertical-align: -4px; }
+    .side-label { padding: 0 8px 6px; color: #737c76; font: 9px var(--mono); text-transform: uppercase; letter-spacing: .1em; }
+    .sidebar nav { display: grid; gap: 3px; }
+    .sidebar nav button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 32px; padding: 6px 9px; text-align: left; border-radius: 4px; color: #a5ada7; font-size: 12px; }
+    .sidebar nav button:hover { background: #1a1e20; color: var(--ink); }
+    .sidebar nav button[aria-pressed="true"] { background: #202623; color: var(--small); font-weight: 620; }
+    .nav-dot { width: 6px; height: 6px; flex: 0 0 6px; border: 1px solid currentColor; border-radius: 50%; opacity: .8; }
+    .sidebar nav button[aria-pressed="true"] .nav-dot { background: currentColor; }
+    .secondary-nav { margin-top: auto; }
+    .workspace { min-width: 0; display: flex; flex-direction: column; }
+    .masthead { min-height: 62px; padding: 0 26px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--rule); background: #141718; }
+    .heading { display: flex; align-items: center; gap: 18px; min-width: 0; }
+    .eyebrow { color: var(--quiet); font: 10px/1.45 var(--mono); margin-bottom: 5px; }
+    #page-index { display: none; }
+    .range-control { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 11px; }
+    .range-control label { color: var(--quiet); }
+    .masthead-meta { display: flex; align-items: center; gap: 18px; }
+    .local-note { display: none; }
+    .refresh-status { color: var(--quiet); font: 10px/1.5 var(--mono); white-space: nowrap; display: flex; align-items: center; gap: 7px; }
+    .refresh-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--small); }
+    .refresh-status.stale::before { background: var(--error); }
+    main { width: min(100%, 1440px); margin: 0 auto; padding: 22px 26px 36px; min-width: 0; }
+    .view { min-width: 0; }
+    .intro { padding-bottom: 20px; }
+    .intro h2 { font-size: 19px; margin-bottom: 7px; }
+    .explanation { color: var(--quiet); max-width: 760px; line-height: 1.55; }
+    .numeric { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .spend { max-width: 760px; margin: 20px 0 16px; padding: 15px 17px; background: var(--surface); border: 1px solid var(--rule); border-radius: 5px; }
+    .spend-value { font: 27px/1.2 var(--mono); letter-spacing: -.04em; margin: 4px 0 7px; font-variant-numeric: tabular-nums; }
+    .spend-footnote { color: var(--quiet); font-size: 11px; }
+    .cost-comparison { margin: 14px 0 10px; }
+    .comparison-track { height: 6px; background: #303638; border-radius: 4px; margin: 7px 0; overflow: hidden; }
+    .comparison-track span { display: block; height: 100%; background: var(--small); border-radius: inherit; }
+    .statline { display: flex; flex-wrap: wrap; gap: 8px 22px; padding-top: 14px; color: var(--quiet); font-size: 11px; }
+    .statline strong { color: var(--ink); font: 13px var(--mono); }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 15px 0 9px; margin-top: 16px; border-top: 1px solid var(--rule); }
+    .section-head h2 { font-size: 14px; }
+    .section-note { color: var(--quiet); font-size: 11px; }
+    .legend { display: flex; gap: 12px; flex-wrap: wrap; color: var(--quiet); font-size: 10px; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .swatch { width: 8px; height: 8px; display: inline-block; background: #aab3ad; border-radius: 2px; }
+    .swatch.small { background: var(--small); }
+    .swatch.strong { background: var(--strong); }
+    .routing-strip { display: flex; height: 7px; margin: 13px 0 8px; background: var(--rule); border-radius: 5px; overflow: hidden; }
+    .routing-strip .small { background: var(--small); }
+    .routing-strip .strong { background: var(--strong); }
+    .split-labels { display: flex; gap: 18px; flex-wrap: wrap; font: 11px var(--mono); }
+    .small-text { color: var(--small); }
+    .strong-text { color: var(--strong); }
+    .error-text { color: var(--error); }
+    .muted { color: var(--quiet); }
+    .fine { font-size: 11px; }
+    .scroll { overflow: auto; max-width: 100%; overscroll-behavior-x: contain; }
+    .ledger-scroll { max-height: 300px; }
+    table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+    th { position: sticky; top: 0; z-index: 1; text-align: left; background: var(--surface); color: var(--quiet); font: 9px/1.5 var(--mono); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+    th, td { padding: 9px 11px 9px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+    th:last-child, td:last-child { padding-right: 0; }
+    td { font-size: 11px; }
+    .ledger-scroll table { min-width: 760px; }
+    #sessions-table table { min-width: 720px; }
+    #performance-table table, #failures table { min-width: 610px; }
+    .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+    .time { color: var(--quiet); font: 10px/1.6 var(--mono); white-space: nowrap; }
+    .link { text-decoration: underline; text-decoration-color: #59635c; text-underline-offset: 3px; text-align: left; }
+    .link:hover { color: var(--small); text-decoration-color: var(--small); }
+    .session-id { font: 12px/1.4 system-ui, sans-serif; overflow-wrap: anywhere; max-width: 270px; }
+    .overview-graphs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 4px 0 20px; }
+    .graph-panel { min-width: 0; padding: 16px; border: 1px solid var(--rule); background: var(--surface); border-radius: 5px; }
+    .graph-panel h2 { font-size: 14px; margin-bottom: 4px; }
+    .graph-panel .chart { height: 195px; margin-top: 12px; }
+    .graph-panel .metric { font: 20px/1.4 var(--mono); margin: 8px 0; }
+    .live-panel { margin: 4px 0 18px; padding: 13px 16px 10px; border: 1px solid var(--rule); background: var(--surface); border-radius: 5px; }
+    .live-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .live-heading h2 { font-size: 14px; }
+    .live-window { display: flex; align-items: center; gap: 8px; color: var(--quiet); font-size: 11px; white-space: nowrap; }
+    .live-chart { height: 94px; margin-top: 5px; }
+    .live-marker { transform-box: fill-box; transform-origin: center; }
+    .live-marker.weak { fill: var(--small); color: var(--small); }
+    .live-marker.strong { fill: var(--strong); color: var(--strong); }
+    .live-marker.unknown { fill: #aab3ad; color: #aab3ad; }
+    .live-marker.flash { animation: live-flash .9s ease-out; }
+    @keyframes live-flash {
+      0% { transform: scale(2.8); filter: drop-shadow(0 0 7px currentColor); opacity: .55; }
+      42% { transform: scale(1); opacity: 1; }
+      68% { transform: scale(1.8); filter: drop-shadow(0 0 6px currentColor); opacity: .85; }
+      100% { transform: scale(1); filter: none; opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) { .live-marker.flash { animation: none; } }
+    .live-meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: var(--quiet); font-size: 10px; }
+    .choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+    .choice-cell { padding: 10px; background: var(--surface-raised); border: 1px solid var(--rule); border-radius: 3px; font-size: 11px; }
+    .choice-cell.different { border-color: #5c766c; }
+    .choice-cell strong { display: block; font: 21px var(--mono); margin-bottom: 5px; }
+    .overview-wide { grid-column: 1 / -1; }
+    #overview-choice-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    @media (max-width: 900px) { .overview-graphs { grid-template-columns: 1fr; } #overview-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .tier { font-weight: 620; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .tier::before { content: ''; display: inline-block; width: 6px; height: 6px; background: currentColor; border-radius: 50%; }
+    .row-detail td { background: var(--surface-raised); padding: 12px; }
+    .technical { color: #abb3ad; font: 10px/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .expand { color: var(--quiet); font: 16px var(--mono); min-width: 20px; }
+    .empty { color: var(--quiet); padding: 22px 0; font-size: 12px; }
+    details { border-bottom: 1px solid var(--rule); }
+    summary { cursor: pointer; padding: 12px 0; color: var(--quiet); font-size: 11px; }
+    details > .detail-body { padding: 0 0 17px; }
+    .disclosure { margin-top: 18px; border-top: 1px solid var(--rule); }
+    .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .chart { display: block; width: 100%; height: 170px; }
+    .chart text { fill: #9aa29c; font: 9px var(--mono); }
+    .chart line { stroke: #303638 !important; }
+    .chart [stroke="#286756"] { stroke: var(--small) !important; }
+    .chart [stroke="#98551c"] { stroke: var(--strong) !important; }
+    .chart [stroke="#232c29"] { stroke: #aab3ad !important; }
+    .chart [fill="#286756"] { fill: var(--small) !important; }
+    .chart [fill="#98551c"] { fill: var(--strong) !important; }
+    .chart [fill="#232c29"] { fill: #aab3ad !important; }
+    .chart-label { margin: 10px 0 7px; font-size: 11px; font-weight: 620; }
+    .chart-legend { margin-top: 5px; }
+    .view-intro { margin: 7px 0 19px; max-width: 760px; color: var(--quiet); font-size: 12px; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+    .toolbar label { color: var(--quiet); font-size: 11px; }
+    .timeline { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; max-width: 220px; min-width: 80px; }
+    .turn-group { display: inline-flex; gap: 1px; margin-right: 3px; }
+    .turn-mark { display: inline-block; width: 6px; height: 15px; background: #65706a; }
+    .turn-mark.weak { background: var(--small); }
+    .turn-mark.strong { background: var(--strong); }
+    .session-detail { border-top: 1px solid var(--rule); margin-top: 24px; padding-top: 15px; scroll-margin-top: 20px; }
+    .detail-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+    .close { border: 1px solid var(--rule); border-radius: 4px; padding: 5px 9px; font-size: 11px; }
+    .turn-summary { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 7px 15px; font-size: 11px; }
+    .preview { white-space: pre-wrap; overflow-wrap: anywhere; border-left: 2px solid var(--rule); padding: 9px 13px; margin-top: 11px; max-width: 900px; font-size: 12px; line-height: 1.6; }
+    .turn-info { color: var(--quiet); font-size: 11px; line-height: 1.7; margin-top: 8px; }
+    .arm-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin: 14px 0 20px; }
+    .arm { padding: 14px 18px 14px 0; }
+    .arm + .arm { border-left: 1px solid var(--rule); padding-left: 18px; }
+    .arm h3 { margin-bottom: 7px; }
+    .arm-count { font: 21px var(--mono); margin-right: 7px; }
+    .arm-label { color: var(--quiet); font-size: 10px; }
+    .arm p { color: var(--quiet); font-size: 11px; margin-top: 8px; max-width: 440px; }
+    .experiment-verdict { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(190px, .8fr); gap: 24px; padding-bottom: 15px; }
+    .experiment-verdict h2 { font-size: 17px; margin-bottom: 6px; }
+    .side-note { border-left: 1px solid var(--rule); padding-left: 18px; }
+    .side-note .spend-value { font-size: 21px; }
+    .disagreement { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(160px, 1fr) auto; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--rule); align-items: center; }
+    .disagreement-picks { font-size: 11px; line-height: 1.7; }
+    .health-heading { font-size: 17px; margin-bottom: 6px; }
+    .status-counts { display: flex; flex-wrap: wrap; gap: 10px 20px; padding: 12px 0; }
+    .notice { border-left: 3px solid var(--strong); padding: 9px 12px; margin-bottom: 15px; background: #202421; font-size: 11px; }
+    footer { margin-top: 25px; padding-top: 12px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; gap: 18px; color: var(--quiet); font: 9px/1.65 var(--mono); }
+    /* Larger reading defaults, including labels that previously used tiny fixed sizes. */
+    body { font-size: 19px; }
+    h1 { font-size: 30px; }
+    h2 { font-size: 24px; }
+    h3, .wordmark { font-size: 20px; }
+    .frame { grid-template-columns: 265px minmax(0, 1fr); }
+    .sidebar nav button { font-size: 19px; min-height: 46px; }
+    .side-label { font-size: 14px; }
+    .brand-mark { font-size: 18px; width: 28px; height: 28px; }
+    .heading, .masthead { flex-wrap: wrap; }
+    .masthead { padding-top: 12px; padding-bottom: 12px; }
+    .intro h2 { font-size: 28px; }
+    .eyebrow, .refresh-status, .time, .technical, .arm-label { font-size: 16px; }
+    .range-control, .spend-footnote, .statline, .section-note, .fine,
+    td, .choice-cell, summary, .chart-label, .toolbar label, .close,
+    .turn-summary, .turn-info, .arm p, .disagreement-picks, .notice { font-size: 17px; }
+    .legend, .split-labels { font-size: 16px; }
+    .statline strong, .session-id, .empty, .view-intro, .preview { font-size: 19px; }
+    .section-head h2, .graph-panel h2, .live-heading h2 { font-size: 21px; }
+    .live-window, .live-meta { font-size: 15px; }
+    .live-panel { padding: 16px 19px 12px; }
+    .live-chart { height: 110px; }
+    .spend-value { font-size: 38px; }
+    .graph-panel .metric { font-size: 28px; }
+    .choice-cell strong, .arm-count, .side-note .spend-value { font-size: 30px; }
+    .experiment-verdict h2, .health-heading { font-size: 25px; }
+    .expand { font-size: 24px; min-width: 34px; min-height: 34px; }
+    th { font-size: 15px; }
+    th, td { padding-top: 14px; padding-bottom: 14px; }
+    .chart text { font-size: 14px; }
+    .graph-panel .chart { height: 235px; }
+    footer { font-size: 14px; }
+    @media (max-width: 1100px) {
+      .overview-graphs { grid-template-columns: 1fr; }
+      #overview-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .frame { display: block; }
+      .sidebar { padding: 10px 12px 0; gap: 9px; border-right: 0; border-bottom: 1px solid var(--rule); }
+      .wordmark { padding: 0 4px; }
+      .sidebar nav { display: flex; overflow-x: auto; gap: 3px; scrollbar-width: thin; }
+      .sidebar nav button { width: auto; flex: 0 0 auto; padding: 7px 9px; white-space: nowrap; }
+      .side-label { display: none; }
+      .secondary-nav { display: block; }
+      .secondary-nav nav { border-top: 1px solid #252a2b; }
+      .workspace { min-height: 0; }
+      .masthead { min-height: 56px; padding: 0 16px; }
+      main { padding: 18px 16px 28px; }
+      .intro, .two-col { grid-template-columns: 1fr; gap: 16px; }
+      .experiment-verdict { grid-template-columns: 1fr; gap: 16px; }
+      .side-note { border-left: 0; border-top: 1px solid var(--rule); padding: 12px 0 0; }
+      .disagreement { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .disagreement > button { grid-column: 1 / -1; justify-self: start; }
+      .range-control { gap: 5px; }
+      .masthead-meta { gap: 10px; }
+    }
+    @media (max-width: 480px) {
+      .live-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
+      .live-window { align-self: flex-end; }
+      .masthead { align-items: flex-start; flex-direction: column; gap: 7px; padding: 10px 14px; }
+      .heading { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+      .masthead-meta { width: 100%; justify-content: space-between; }
+      main { padding-right: 12px; padding-left: 12px; }
+      .arm-columns { grid-template-columns: 1fr; }
+      .arm + .arm { border-left: 0; border-top: 1px solid var(--rule); padding-left: 0; }
+      .section-head { align-items: flex-start; flex-direction: column; gap: 4px; }
+      .toolbar { align-items: flex-start; flex-direction: column; }
+      footer { flex-direction: column; gap: 7px; }
+      .split-labels { gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <aside class="sidebar" aria-label="Dashboard navigation">
+      <div class="wordmark"><span class="brand-mark" aria-hidden="true">S</span>Scaffold Router</div>
+      <div>
+        <p class="side-label">Workspace</p>
+        <nav aria-label="Dashboard views">
+          <button type="button" data-view="live" aria-pressed="true" aria-controls="view-live"><span class="nav-dot" aria-hidden="true"></span>Overview</button>
+          <button type="button" data-view="spending" aria-pressed="false" aria-controls="view-spending"><span class="nav-dot" aria-hidden="true"></span>Spending</button>
+          <button type="button" data-view="sessions" aria-pressed="false" aria-controls="view-sessions"><span class="nav-dot" aria-hidden="true"></span>Conversations</button>
+          <button type="button" data-view="experiment" aria-pressed="false" aria-controls="view-experiment"><span class="nav-dot" aria-hidden="true"></span>Routing comparison</button>
+        </nav>
+      </div>
+      <div class="secondary-nav">
+        <p class="side-label">Diagnostics</p>
+        <nav aria-label="Diagnostics">
+          <button type="button" data-view="performance" aria-pressed="false" aria-controls="view-performance"><span class="nav-dot" aria-hidden="true"></span>Response timing</button>
+        </nav>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="masthead">
+        <div class="heading">
+          <div><p class="eyebrow" id="page-index">Activity</p><h1 id="page-title">Overview</h1></div>
+          <div class="range-control">
+            <label for="range">Range</label>
+            <select id="range">
+              <option value="all">All history</option>
+              <option value="24h">Last 24 hours</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+            </select>
+          </div>
+        </div>
+        <div class="masthead-meta"><div id="refresh-status" class="refresh-status">Reading local log…</div></div>
+      </header>
+      <main>
+        <div id="notice" class="notice" role="status" hidden></div>
+        <section id="view-live" class="view" aria-label="Overview">
+          <div class="intro">
+            <p class="eyebrow" id="period-label">Across selected history</p>
+            <h2 id="routing-headline">Reading the router’s record.</h2>
+            <p class="explanation" id="routing-explanation">Each request below is one completed call to a model. A user turn can include several calls as the agent uses tools.</p>
+            <div class="legend" style="margin-top:12px"><span><i class="swatch small"></i>Small · lower cost</span><span><i class="swatch strong"></i>Strong · higher capability</span></div>
+            <div id="routing-strip" class="routing-strip" aria-label="Request routing split"></div>
+            <div id="routing-labels" class="split-labels"></div>
+            <div id="activity-counts" class="statline"></div>
+          </div>
+          <section class="live-panel" aria-label="Live model routing timeline">
+            <div class="live-heading">
+              <h2>Live routing</h2>
+              <div class="live-window"><label for="live-window">Show last</label><select id="live-window"><option value="5" selected>5 min</option><option value="15">15 min</option><option value="60">60 min</option></select></div>
+            </div>
+            <svg id="live-chart" class="chart live-chart" role="img" aria-label="Completed model calls in the last 5 minutes"></svg>
+            <div class="live-meta"><span id="live-count">No calls in this window</span><span>Each marker is one completed call · newest at right</span></div>
+          </section>
+          <div class="overview-graphs">
+            <section class="graph-panel" aria-label="Cumulative spending">
+              <h2>Is the estimated saving growing?</h2>
+              <p id="overview-spend" class="metric">—</p>
+              <p id="overview-coverage" class="fine muted"></p>
+              <svg id="cumulative-chart" class="chart" role="img" aria-label="Cumulative recorded spend versus Strong-only estimate"></svg>
+              <div class="legend"><span><i class="swatch small"></i>Recorded spend</span><span><i class="swatch strong"></i>Strong-only estimate</span></div>
+              <p class="fine muted" style="margin-top:8px">Cumulative within the selected range · same tokens repriced, not a separate run.</p>
+            </section>
+            <section class="graph-panel" aria-label="Model use over time">
+              <h2>Which models are doing the work?</h2>
+              <p class="fine muted">Model calls per UTC day</p>
+              <svg id="activity-chart" class="chart" role="img" aria-label="Small and Strong model calls by day"></svg>
+              <div class="legend"><span><i class="swatch small"></i>Small calls</span><span><i class="swatch strong"></i>Strong calls</span></div>
+              <p id="model-use-summary" class="fine muted" style="margin-top:8px"></p>
+            </section>
+            <section class="graph-panel overview-wide" aria-label="AI choices versus rules">
+              <h2>Does AI choose differently from the rules?</h2>
+              <p id="overview-choice-summary" class="fine muted"></p>
+              <div id="overview-choice-grid" class="choice-grid"></div>
+              <p class="fine muted">One comparison per evaluated user message. Different choices do not establish better task results.</p>
+            </section>
+          </div>
+          <div class="section-head"><h2>Recent activity</h2><span id="ledger-caption" class="section-note">Newest first · completed calls only</span></div>
+          <p class="fine muted" style="margin-bottom:10px">Conversation labels use a short first-message excerpt when available. Open one for its messages; raw IDs are in details.</p>
+          <div id="request-ledger" class="scroll ledger-scroll"></div>
+          <details class="disclosure" id="routing-disclosure">
+            <summary>Routing details · overrides, escalations &amp; exact reasons</summary>
+            <div class="detail-body"><p id="override-summary" class="explanation fine"></p><div id="reason-table" class="scroll"></div></div>
+          </details>
+        </section>
+        <section id="view-spending" class="view" aria-label="Spending" hidden>
+          <h2>Recorded spend</h2>
+          <p class="view-intro">Actual recorded charges include model calls and classifier charges. The comparison is an estimate that reprices the same tokens at the Strong tier; it is not a separate all-Strong run.</p>
+          <div class="spend">
+            <p class="eyebrow">Actual recorded spend</p>
+            <div id="spend-value" class="spend-value">—</div>
+            <p id="cost-coverage" class="spend-footnote">Includes classifier charges.</p>
+            <div class="cost-comparison">
+              <div id="savings-summary" class="fine">Waiting for cost data.</div>
+              <div class="comparison-track" aria-label="Recorded spend compared with all-strong estimate"><span id="cost-fill" style="width:0%"></span></div>
+              <p class="spend-footnote" id="all-strong-value">Same-token all-Strong estimate: waiting for cost data.</p>
+            </div>
+          </div>
+          <div class="section-head"><h2>Spend over time</h2><span class="section-note">Actual vs same-token all-Strong estimate · UTC day</span></div>
+          <svg id="cost-chart" class="chart" role="img" aria-label="Recorded spend and same-token all-strong estimate by day"></svg>
+          <div class="legend chart-legend"><span><i class="swatch small"></i>Actual recorded spend</span><span><i class="swatch strong"></i>All-Strong estimate</span></div>
+        </section>
+        <section id="view-sessions" class="view" aria-label="Conversations" hidden>
+          <h2>Conversations</h2>
+          <p class="view-intro">Each session is one conversation. A user message starts a turn; a turn may make several model calls. Select a session to inspect its recorded turns and message previews.</p>
+          <div class="toolbar">
+            <div class="legend"><span><i class="swatch small"></i>Small · lower cost</span><span><i class="swatch strong"></i>Strong · higher capability</span><span>Each mark group is one user turn; two colors show a tier switch.</span></div>
+            <div><label for="session-sort">Sort </label><select id="session-sort"><option value="recent">Most recent</option><option value="cost">Highest cost</option><option value="turns">Most turns</option><option value="flips">Most tier flips</option></select></div>
+          </div>
+          <div id="sessions-table" class="scroll"></div>
+          <div id="session-detail" class="session-detail" hidden></div>
+          <details class="disclosure"><summary>What counts as a tier flip?</summary><div class="detail-body explanation fine">A between-turn flip means the previous turn ended on one model tier and the next began on another. A within-turn switch is shown separately, for example when the router escalates from Small to Strong. Date filters can include partial turns; counts follow the logged turn-starts.</div></details>
+        </section>
+        <section id="view-experiment" class="view" aria-label="Routing comparison" hidden>
+          <h2>Routing comparison</h2>
+          <p class="view-intro">Compare which model each selector chooses for the same tagged user messages. This measures selector agreement, not task success or model quality.</p>
+          <div class="arm-columns">
+            <article class="arm"><h3>AI-selected conversations</h3><div id="arm-on-counts"></div><p>AI chooses the model. Counts below show experiment conversations and classified user messages.</p></article>
+            <article class="arm"><h3>Rule-selected conversations</h3><div id="arm-shadow-counts"></div><p>Keyword rules choose; AI prediction is recorded only. Counts below show experiment conversations and classified user messages.</p></article>
+          </div>
+          <div class="experiment-verdict">
+            <div><p class="eyebrow">Selector predictions</p><h2 id="agreement-headline">No compared user messages yet.</h2><p id="agreement-explanation" class="explanation">A comparison requires both an AI prediction and a keyword-rule prediction for the same tagged user message.</p></div>
+            <aside class="side-note"><p class="eyebrow">Classifier charges</p><div id="classifier-cost" class="spend-value">—</div><p class="fine muted">Included in actual recorded spend; this is the total classifier charge for the selected period.</p></aside>
+          </div>
+          <div id="comparison-choice-grid" class="choice-grid" aria-label="AI and rules choice counts"></div>
+          <div class="section-head"><h2>Different predictions</h2><span class="section-note">One comparison per tagged user message</span></div>
+          <div id="disagreements"></div>
+          <p class="explanation fine" style="margin-top:18px">Historical requests without an experiment arm are excluded. Overrides may have no AI prediction. Open a conversation to inspect its recorded message and what followed.</p>
+        </section>
+        <section id="view-performance" class="view" aria-label="Response timing and errors" hidden>
+          <p class="eyebrow">Diagnostics</p>
+          <h2 id="health-headline" class="health-heading">Reading completed requests.</h2>
+          <p class="view-intro">Total latency runs until the response finishes. Header timing measures time until response headers arrive — not true time to first token (TTFT). These are request measurements, not time to finish a user’s task.</p>
+          <div class="section-head"><h2>Response timing</h2><span class="section-note">Median = typical · p95 = 95% finished within this time</span></div>
+          <div id="performance-table" class="scroll"></div>
+          <div class="section-head" style="margin-top:24px"><h2>Errors &amp; unusual responses</h2><span id="non200-summary" class="section-note"></span></div>
+          <div id="failures" class="scroll"></div>
+          <details class="disclosure"><summary>HTTP statuses &amp; measurement notes</summary><div class="detail-body"><div id="status-summary" class="status-counts"></div><p class="explanation fine">Errors include HTTP status 400 or above and provider error events inside HTTP 200 responses. Other non-200 statuses are listed but are not necessarily errors. Missing header timings are excluded, not treated as zero. Headers can arrive before the model’s first token; true first-token timing is not available in this log. Median and p95 use nearest-rank percentiles. Small sample counts make comparisons noisy.</p></div></details>
+        </section>
+        <footer><span>READ-ONLY / decisions.jsonl<br>Small = lower-cost tier · Strong = higher-capability tier</span><span>Refreshes every second · times shown in your browser’s timezone<br>In-flight requests appear only after they are logged.</span></footer>
+      </main>
+    </div>
+  </div>
+  <script>
+  (() => {
+    const $ = (id) => document.getElementById(id);
+    const range = $('range');
+    const navigation = [...document.querySelectorAll('[data-view]')];
+    const titles = {
+      live: ['Monitor', 'Overview'],
+      spending: ['Costs', 'Spending'],
+      sessions: ['History', 'Conversations'],
+      experiment: ['Compare', 'Routing comparison'],
+      performance: ['Diagnostics', 'Response timing'],
+    };
+    let activeView = 'live';
+    let selectedSession = null;
+    let selectedRequest = null;
+    let latestData = null;
+    let renderedData = null;
+    let running = false;
+    let seenLiveRequests = null;
+    let freshLiveRequests = new Set();
+    let liveClockAnchor = null;
+    let liveTimeline = null;
+    const liveNow = () => liveClockAnchor
+      ? liveClockAnchor.serverTime + performance.now() - liveClockAnchor.receivedAt
+      : Date.now();
+    const openTurns = new Set();
+    const number = (n) => new Intl.NumberFormat().format(n ?? 0);
+    const money = (n) => '$' + Number(n || 0).toFixed(Math.abs(n || 0) >= 1 ? 2 : 4);
+    const pct = (n) => n == null ? '—' : (100 * n).toFixed(1) + '%';
+    const duration = (n) => n == null ? '—' : n >= 1000 ? (n / 1000).toFixed(1) + ' s' : Math.round(n) + ' ms';
+    const tierName = (tier) => tier === 'weak' ? 'Small' : tier === 'strong' ? 'Strong' : 'Unknown';
+    const tierClass = (tier) => tier === 'weak' ? 'small-text' : tier === 'strong' ? 'strong-text' : 'muted';
+    const time = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const date = (ts) => new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    const el = (tag, text, cls) => {
+      const node = document.createElement(tag);
+      if (text !== undefined && text !== null) node.textContent = String(text);
+      if (cls) node.className = cls;
+      return node;
+    };
+    const cell = (row, value, cls) => { const td = el('td', value, cls); row.append(td); return td; };
+    const tierLabel = (tier) => el('span', tierName(tier), 'tier ' + tierClass(tier));
+
+    function reasonLabel(reason) {
+      if (!reason) return 'No reason recorded';
+      if (reason.startsWith('override:!strong')) return 'You requested Strong';
+      if (reason.startsWith('override:!weak')) return 'You requested Small';
+      if (reason.startsWith('escalate:tool_errors')) return 'Switched up after tool errors';
+      if (reason.startsWith('escalate:')) return 'Switched up after repeated tool calls';
+      if (reason.startsWith('classifier:')) return 'AI chose the model';
+      if (reason.startsWith('session:')) return 'Kept the conversation’s initial choice';
+      if (reason.startsWith('heuristic:')) return 'Keyword rules chose the model';
+      if (reason === 'forced') return 'Model selected directly';
+      if (reason === 'title') return 'Naming the conversation';
+      if (reason === 'compaction') return 'Summarizing the conversation';
+      if (reason === 'router_error') return 'Strong used after a router error';
+      return reason;
+    }
+
+    function makeTable(headers, rows, emptyMessage = 'No records in this period.') {
+      const table = el('table');
+      const head = el('thead');
+      const header = el('tr');
+      headers.forEach((label) => header.append(el('th', label)));
+      head.append(header);
+      const body = el('tbody');
+      if (!rows.length) {
+        const row = el('tr');
+        const td = cell(row, emptyMessage, 'empty');
+        td.colSpan = headers.length;
+        body.append(row);
+      } else body.append(...rows);
+      table.append(head, body);
+      return table;
+    }
+
+    function showView(view) {
+      activeView = view;
+      for (const name of Object.keys(titles)) $('view-' + name).hidden = name !== view;
+      navigation.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+      $('page-index').textContent = titles[view][0];
+      $('page-title').textContent = titles[view][1];
+      if (latestData) renderView(latestData);
+    }
+
+    function openSession(key) {
+      selectedSession = key;
+      showView('sessions');
+      $('session-detail').tabIndex = -1;
+      $('session-detail').focus({ preventScroll: true });
+      $('session-detail').scrollIntoView({ block: 'start' });
+    }
+
+    function conversationLabel(key) {
+      return latestData?.sessions.find((session) => session.sessionKey === key)?.label || (key && key !== '(none)' ? 'Conversation (label unavailable)' : 'Unattributed calls');
+    }
+
+    function sessionButton(key, text) {
+      const button = el('button', text || conversationLabel(key), 'link session-id');
+      button.type = 'button';
+      button.dataset.focusKey = 'session:' + key;
+      button.title = text || conversationLabel(key);
+      button.disabled = !key || key === '(none)';
+      button.addEventListener('click', () => openSession(key));
+      return button;
+    }
+
+    function renderLiveTimeline(data) {
+      const svg = $('live-chart');
+      const minutes = Number($('live-window').value) || 5;
+      const now = liveNow();
+      const start = now - minutes * 60 * 1000;
+      const events = (data.liveRequests || []).filter((request) => {
+        const ts = Date.parse(request.ts);
+        return Number.isFinite(ts) && ts >= start && ts <= now;
+      });
+      const width = Math.max(340, svg.clientWidth || 550), height = 100;
+      const left = 14, right = 14, baseline = 48;
+      const x = (ts) => left + (width - left - right) * ((ts - start) / (minutes * 60 * 1000));
+      svg.replaceChildren();
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.setAttribute('aria-label', `Completed model calls in the last ${minutes} minutes`);
+      svg.append(svgNode('line', { x1: left, x2: width - right, y1: baseline, y2: baseline, stroke: '#303638', 'stroke-width': 2 }));
+      const ticks = [];
+      const markers = [];
+      for (const fraction of [0, .5, 1]) {
+        const tickX = left + (width - left - right) * fraction;
+        svg.append(svgNode('line', { x1: tickX, x2: tickX, y1: baseline - 18, y2: baseline + 20, stroke: '#303638' }));
+        const anchor = fraction === 0 ? 'start' : fraction === 1 ? 'end' : 'middle';
+        const label = svgNode('text', { x: tickX, y: 88, 'text-anchor': anchor });
+        ticks.push({ label, fraction });
+        svg.append(label);
+      }
+      const lanes = new Map();
+      const offsets = [0, -12, 12, -22, 22, -30, 30];
+      for (const request of events) {
+        const ts = Date.parse(request.ts);
+        const position = x(ts);
+        const bucket = Math.round(position / 5);
+        const lane = lanes.get(bucket) || 0;
+        lanes.set(bucket, lane + 1);
+        const tier = request.tier === 'weak' ? 'weak' : request.tier === 'strong' ? 'strong' : 'unknown';
+        const marker = svgNode('circle', {
+          cx: position,
+          cy: baseline + offsets[lane % offsets.length],
+          r: 4,
+          class: 'live-marker ' + tier + (freshLiveRequests.delete(request.requestId) ? ' flash' : ''),
+          tabindex: 0,
+          'aria-label': `${time(request.ts)} · ${tierName(tier)} · ${reasonLabel(request.reason)} · HTTP ${request.status}`,
+        });
+        marker.append(svgNode('title', {}, `${time(request.ts)} · ${tierName(tier)} · ${reasonLabel(request.reason)} · HTTP ${request.status}`));
+        svg.append(marker);
+        markers.push({ marker, ts, tier });
+      }
+      const empty = svgNode('text', { x: width / 2, y: 26, 'text-anchor': 'middle' }, 'No calls in this window.');
+      svg.append(empty);
+      liveTimeline = { minutes, width, left, right, ticks, markers, empty };
+      advanceLiveTimeline();
+    }
+
+    // Move existing SVG nodes instead of rebuilding them: pulses and keyboard focus survive.
+    function advanceLiveTimeline() {
+      if (!liveTimeline || activeView !== 'live' || document.hidden) return;
+      const { minutes, width, left, right, ticks, markers, empty } = liveTimeline;
+      const now = liveNow();
+      const windowMs = minutes * 60 * 1000;
+      const start = now - windowMs;
+      const counts = { weak: 0, strong: 0, unknown: 0 };
+      for (const entry of markers) {
+        if (entry.ts < start) { entry.marker.remove(); continue; }
+        entry.marker.setAttribute('cx', left + (width - left - right) * ((entry.ts - start) / windowMs));
+        counts[entry.tier]++;
+      }
+      liveTimeline.markers = markers.filter((entry) => entry.ts >= start);
+      for (const { label, fraction } of ticks) {
+        const text = new Date(start + windowMs * fraction).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        if (label.textContent !== text) label.textContent = text;
+      }
+      const count = counts.weak + counts.strong + counts.unknown;
+      const text = `${number(count)} calls · ${number(counts.weak)} Small · ${number(counts.strong)} Strong${counts.unknown ? ` · ${number(counts.unknown)} unknown` : ''}`;
+      if ($('live-count').textContent !== text) $('live-count').textContent = text;
+      empty.style.display = count ? 'none' : '';
+    }
+
+    function renderLive(data) {
+      renderLiveTimeline(data);
+      const totals = data.totals;
+      const requests = totals.requests;
+      const small = data.routing.tiers.weak || 0;
+      const strong = data.routing.tiers.strong || 0;
+      const unknown = data.routing.tiers.unknown || 0;
+      const period = range.value === 'all' ? 'Across selected history' : 'In the ' + range.options[range.selectedIndex].text.toLowerCase();
+      $('period-label').textContent = period;
+      $('routing-headline').textContent = !requests ? 'No model calls yet'
+        : small === strong ? 'Small and Strong split the work'
+        : small > requests / 2 ? 'Mostly using Small'
+        : strong > requests / 2 ? 'Mostly using Strong'
+        : 'Mixed model use';
+      if (requests && unknown > Math.max(small, strong)) $('routing-headline').textContent = 'Model information is missing for most calls';
+      $('routing-explanation').textContent = requests
+        ? `${number(small)} calls to Small · ${number(strong)} to Strong${unknown ? ` · ${number(unknown)} unknown` : ''}. One user message can trigger several model calls.`
+        : 'The dashboard is watching the local log. Try a wider period, or use the router to create new records.';
+      const split = [];
+      for (const [tier, count] of [['weak', small], ['strong', strong], ['unknown', unknown]]) {
+        if (!count) continue;
+        const span = el('span', undefined, tier === 'weak' ? 'small' : tier);
+        span.style.width = (100 * count / requests) + '%';
+        span.title = `${tierName(tier)}: ${count}`;
+        split.push(span);
+      }
+      $('routing-strip').replaceChildren(...split);
+      $('routing-labels').replaceChildren(
+        el('span', `Small ${requests ? pct(small / requests) : '—'}`, 'small-text'),
+        el('span', `Strong ${requests ? pct(strong / requests) : '—'}`, 'strong-text'),
+        ...(unknown ? [el('span', `Unknown ${pct(unknown / requests)}`, 'muted')] : []),
+      );
+      const counts = [
+        [requests, 'model calls'], [totals.turns, 'user messages'],
+        [data.sessions.filter((s) => s.sessionKey !== '(none)').length, 'conversations'],
+        [data.performance.errors, 'failed calls'],
+      ];
+      $('activity-counts').replaceChildren(...counts.map(([count, label]) => {
+        const text = el('span'); text.append(el('strong', number(count)), ' ' + label); return text;
+      }));
+      renderLedger(data);
+      const override = data.routing.overrides;
+      $('override-summary').textContent = `${number(override['!strong'])} calls explicitly forced to Strong · ${number(override['!weak'])} forced to Small · ${number(data.routing.escalations)} calls switched up after problems. Counts are model calls, not user messages.`;
+      const reasonRows = data.routing.reasons.map((entry) => {
+        const row = el('tr');
+        cell(row, reasonLabel(entry.reason)); cell(row, entry.reason, 'technical'); cell(row, number(entry.requests), 'num');
+        return row;
+      });
+      $('reason-table').replaceChildren(makeTable(['Explanation', 'Logged reason', 'Requests'], reasonRows));
+      renderOverviewGraphs(data);
+    }
+
+    function renderSpending(data) {
+      const totals = data.totals;
+      $('spend-value').textContent = money(totals.costUSD);
+      const unpriced = data.coverage.unpricedRequests;
+      const missingEstimate = data.coverage.missingAllStrongRequests;
+      $('cost-coverage').textContent = unpriced || missingEstimate
+        ? `${number(unpriced)} calls have no recorded cost; ${number(missingEstimate)} have no comparison cost. Totals may be incomplete.`
+        : 'All calls have recorded costs. Includes the AI’s model-selection fees.';
+      const savings = totals.allStrongCostUSD - totals.costUSD;
+      $('savings-summary').textContent = !totals.allStrongCostUSD ? 'No cost comparison available'
+        : savings >= 0 ? `${money(savings)} estimated saving · ${totals.savingsPct.toFixed(1)}%`
+        : `${money(-savings)} above the Strong-only estimate`;
+      $('cost-fill').style.width = (totals.allStrongCostUSD ? Math.min(100, 100 * totals.costUSD / totals.allStrongCostUSD) : 0) + '%';
+      $('all-strong-value').textContent = `${money(totals.allStrongCostUSD)} if the same tokens had all used Strong`;
+      renderCharts(data);
+    }
+
+    function renderLedger(data) {
+      const requests = data.recentRequests || [];
+      $('ledger-caption').textContent = `${number(requests.length)} latest completed calls · newest first`;
+      const rows = [];
+      for (const request of requests) {
+        const row = el('tr');
+        const clock = cell(row, '', 'time'); clock.append(el('div', time(request.ts)), el('div', date(request.ts)));
+        const session = cell(row, '');
+        session.append(sessionButton(request.sessionKey));
+        session.append(el('div', request.kind === 'agent' ? `Message ${request.turnIndex ?? '—'}` : request.kind === 'title' ? 'Conversation title' : request.kind === 'compaction' ? 'History summary' : 'Other call', 'fine muted'));
+        cell(row, '').append(tierLabel(request.tier));
+        cell(row, reasonLabel(request.reason));
+        const status = cell(row, request.error || request.status >= 400 ? 'Error · ' + request.status : request.status === 200 ? 'OK' : 'HTTP ' + request.status, request.error || request.status >= 400 ? 'error-text fine' : 'muted fine');
+        status.title = request.error || 'HTTP ' + request.status;
+        cell(row, request.costUSD == null ? '—' : money(request.costUSD), 'num');
+        const more = el('button', selectedRequest === request.requestId ? '−' : '+', 'expand');
+        more.type = 'button';
+        more.dataset.focusKey = 'request:' + request.requestId;
+        more.setAttribute('aria-label', 'Request details for ' + request.requestId);
+        more.setAttribute('aria-expanded', String(selectedRequest === request.requestId));
+        more.addEventListener('click', () => { selectedRequest = selectedRequest === request.requestId ? null : request.requestId; renderView(data); });
+        cell(row, '').append(more);
+        rows.push(row);
+        if (selectedRequest === request.requestId) {
+          const detail = el('tr', undefined, 'row-detail');
+          const body = cell(detail, ''); body.colSpan = 7;
+          body.append(el('div', `Request ${request.requestId}\nConversation ID ${request.sessionKey || 'none'}\nModel ${request.upstreamModel || 'unknown'} · requested ${request.requestedModel || 'unknown'}\nReason ${request.reason || 'none'}\nLatency ${duration(request.latencyMs)}${request.error ? '\nError ' + request.error : ''}`, 'technical'));
+          body.append(el('p', 'This is the cost of one model call. The Spending total also includes the AI’s model-selection fees.', 'fine muted'));
+          rows.push(detail);
+        }
+      }
+      $('request-ledger').replaceChildren(makeTable(['Time', 'Conversation', 'Model', 'Why this model?', 'Result', 'Cost', ''], rows));
+    }
+
+    function timeline(session) {
+      const line = el('div', undefined, 'timeline');
+      const spoken = [];
+      for (const turn of session.turnDetails) {
+        const group = el('span', undefined, 'turn-group');
+        for (const tier of turn.tierSequence) {
+          const mark = el('span', undefined, 'turn-mark ' + (tier === 'weak' || tier === 'strong' ? tier : 'unknown'));
+          mark.title = `Message ${turn.turnIndex}: ${tierName(tier)}`;
+          mark.setAttribute('aria-hidden', 'true');
+          group.append(mark);
+        }
+        line.append(group);
+        spoken.push(`Message ${turn.turnIndex}: ${turn.tierSequence.map(tierName).join(' to ')}`);
+      }
+      if (!session.turnDetails.length) line.textContent = 'No user messages';
+      line.setAttribute('role', 'img');
+      line.setAttribute('aria-label', spoken.join('; ') || 'No user messages');
+      return line;
+    }
+
+    function renderSessions(data) {
+      const sort = $('session-sort').value;
+      const sessions = [...data.sessions].sort((a, b) => sort === 'cost' ? b.costUSD - a.costUSD : sort === 'turns' ? b.turns - a.turns : sort === 'flips' ? b.tierFlips - a.tierFlips : b.lastTs.localeCompare(a.lastTs));
+      const rows = sessions.map((session) => {
+        const row = el('tr');
+        const label = cell(row, ''); label.append(sessionButton(session.sessionKey), el('div', `${date(session.firstTs)} · ${time(session.firstTs)}`, 'fine muted'));
+        cell(row, number(session.turns), 'num');
+        cell(row, money(session.costUSD), 'num');
+        cell(row, money(session.allStrongCostUSD), 'num');
+        cell(row, number(session.tierFlips), 'num');
+        cell(row, '').append(timeline(session));
+        return row;
+      });
+      $('sessions-table').replaceChildren(makeTable(['Conversation / first activity', 'Messages', 'Cost', 'Strong-only est.', 'Model changes', 'Models used'], rows));
+      const chosen = sessions.find((s) => s.sessionKey === selectedSession);
+      $('session-detail').hidden = !chosen;
+      if (chosen) renderSession(chosen);
+    }
+
+    function renderSession(session) {
+      const panel = $('session-detail');
+      const heading = el('div', undefined, 'detail-heading');
+      const label = el('div'); label.append(el('p', 'Conversation details', 'eyebrow'), el('h2', session.label), el('p', session.sessionKey, 'technical'));
+      const close = el('button', 'Close details ×', 'close');
+      close.type = 'button'; close.dataset.focusKey = 'close-session';
+      close.addEventListener('click', () => {
+        selectedSession = null;
+        panel.hidden = true;
+        const source = [...$('sessions-table').querySelectorAll('[data-focus-key]')].find((node) => node.dataset.focusKey === 'session:' + session.sessionKey);
+        source?.focus({ preventScroll: true });
+      });
+      heading.append(label, close);
+      panel.replaceChildren(heading);
+      panel.append(el('p', `${number(session.requests)} model calls · ${number(session.turns)} user messages · ${money(session.costUSD)} recorded cost · ${session.tierFlips} model changes between messages`, 'view-intro fine'));
+      if (!session.turnDetails.length) panel.append(el('p', 'No user messages recorded in this period.', 'empty'));
+      for (const turn of session.turnDetails) {
+        const detail = el('details');
+        const key = session.sessionKey + ':' + turn.turnIndex;
+        detail.open = openTurns.has(key);
+        detail.addEventListener('toggle', () => { if (detail.isConnected) { if (detail.open) openTurns.add(key); else openTurns.delete(key); } });
+        const summary = el('summary');
+        summary.dataset.focusKey = 'turn:' + key;
+        const heading = el('span', undefined, 'turn-summary');
+        heading.append(el('strong', 'Message ' + turn.turnIndex));
+        heading.append(el('span', time(turn.startedAt), 'time'));
+        heading.append(el('span', turn.tierSequence.map(tierName).join(' → '), tierClass(turn.tier)));
+        heading.append(el('span', `${number(turn.requests)} calls · ${money(turn.costUSD)}`, 'fine muted'));
+        summary.append(heading);
+        const body = el('div', undefined, 'detail-body');
+        body.append(el('p', reasonLabel(turn.reason), 'fine'));
+        const picks = [];
+        if (turn.arm) picks.push(turn.arm === 'on' ? 'AI-selected conversation' : 'Rule-selected conversation');
+        if (turn.classifierTier) picks.push('AI suggested ' + tierName(turn.classifierTier));
+        if (turn.heuristicTier) picks.push('Rules suggested ' + tierName(turn.heuristicTier));
+        picks.push(`${turn.internalTierFlips} model switches while handling this message`, `${turn.errors} failed calls`);
+        body.append(el('div', picks.join(' · '), 'turn-info'));
+        body.append(el('p', turn.turnPreview || 'No message preview recorded for this turn.', 'preview'));
+        body.append(el('div', 'Logged reason: ' + turn.reason, 'technical'));
+        detail.append(summary, body); panel.append(detail);
+      }
+    }
+
+    function renderExperiment(data) {
+      const experiment = data.experiment;
+      for (const arm of ['on', 'shadow']) {
+        const group = $('arm-' + arm + '-counts');
+        group.replaceChildren(el('span', number(experiment.sessions[arm]), 'arm-count'), el('span', `conversations · ${number(experiment.turns[arm])} messages evaluated`, 'arm-label'));
+      }
+      const { matching, compared } = experiment.agreement;
+      $('agreement-headline').textContent = compared ? `Different choices on ${number(compared - matching)} of ${number(compared)} messages` : 'No model choices to compare yet';
+      $('agreement-explanation').textContent = compared
+        ? `The AI and keyword rules suggested the same model on ${number(matching)} messages. Different choices do not necessarily mean better results.`
+        : 'Comparisons appear when the log contains both an AI suggestion and a rule-based suggestion for the same user message.';
+      $('classifier-cost').textContent = money(experiment.classifierCostUSD);
+      renderChoiceGrid($('comparison-choice-grid'), experiment);
+      const disagreements = [...experiment.disagreements].reverse().map((entry) => {
+        const row = el('article', undefined, 'disagreement');
+        const context = el('div');
+        context.append(el('p', `${date(entry.ts)} · ${time(entry.ts)} · message ${entry.turnIndex}`, 'time'));
+        context.append(el('p', conversationLabel(entry.sessionKey), 'session-id'));
+        context.append(el('p', entry.arm === 'on' ? 'AI-selected conversation' : 'Rule-selected conversation', 'fine muted'));
+        const picks = el('div', undefined, 'disagreement-picks');
+        picks.append(el('div', 'AI suggested ' + tierName(entry.classifierTier), tierClass(entry.classifierTier)));
+        picks.append(el('div', 'Rules suggested ' + tierName(entry.heuristicTier), tierClass(entry.heuristicTier)));
+        picks.append(el('div', 'Actually used ' + tierName(entry.routedTier)));
+        const button = sessionButton(entry.sessionKey, 'View conversation →'); button.className = 'link fine';
+        row.append(context, picks, button);
+        return row;
+      });
+      $('disagreements').replaceChildren(...(disagreements.length ? disagreements : [el('p', 'No different choices recorded in this period.', 'empty')]));
+    }
+
+    function renderPerformance(data) {
+      const errors = data.performance.errors;
+      $('health-headline').textContent = !data.totals.requests ? 'No completed requests in this period.'
+        : !errors ? 'No failed requests recorded.' : `${number(errors)} of ${number(data.totals.requests)} requests failed.`;
+      const rows = Object.entries(data.performance.byTier).map(([tier, stats]) => {
+        const row = el('tr'); cell(row, '').append(tierLabel(tier));
+        for (const value of [number(stats.samples), duration(stats.latencyMedianMs), duration(stats.latencyP95Ms), number(stats.ttftSamples), duration(stats.ttftMedianMs), duration(stats.ttftP95Ms)]) cell(row, value, 'num');
+        return row;
+      });
+      $('performance-table').replaceChildren(makeTable(['Model', 'Calls', 'Typical duration', '95% completed in', 'Header samples', 'Typical headers', '95% headers in'], rows));
+      $('non200-summary').textContent = `${number(errors)} errors · ${number(data.performance.non200)} non-200 responses (may overlap)`;
+      const failureRows = data.performance.failures.map((failure) => {
+        const row = el('tr'); cell(row, `${date(failure.ts)} ${time(failure.ts)}`, 'time');
+        cell(row, '').append(sessionButton(failure.sessionKey));
+        cell(row, failure.status, 'numeric');
+        cell(row, '').append(tierLabel(failure.tier));
+        cell(row, failure.error || 'No error message recorded.', 'technical error-text');
+        return row;
+      });
+      $('failures').replaceChildren(makeTable(['When', 'Conversation', 'HTTP status', 'Model', 'Error detail'], failureRows, 'No errors or non-200 responses recorded.'));
+      $('status-summary').replaceChildren(...data.performance.statuses.map((entry) => el('span', `HTTP ${entry.status}: ${number(entry.requests)} requests`, 'numeric fine')));
+    }
+
+    function svgNode(tag, attributes, text) {
+      const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, String(value)));
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function chart(svg, series, moneyAxis) {
+      svg.replaceChildren();
+      const width = Math.max(340, svg.clientWidth || 550), height = 180;
+      const left = 76, right = 25, top = 16, bottom = 30;
+      const values = series.flatMap((s) => s.values);
+      const max = Math.max(moneyAxis ? .0001 : 1, ...values);
+      const dates = latestData.trend.map((entry) => entry.date);
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      if (!dates.length) { svg.append(svgNode('text', { x: left, y: 85 }, 'No activity in this period.')); return; }
+      const x = (i) => left + (width - left - right) * (dates.length === 1 ? .5 : i / (dates.length - 1));
+      const y = (value) => top + (height - top - bottom) * (1 - value / max);
+      for (let step = 0; step <= 2; step++) {
+        const value = max * step / 2;
+        svg.append(svgNode('line', { x1: left, x2: width - right, y1: y(value), y2: y(value), stroke: getComputedStyle(document.documentElement).getPropertyValue('--rule').trim() || '#30353a' }));
+        svg.append(svgNode('text', { x: left - 7, y: y(value) + 3, 'text-anchor': 'end' }, moneyAxis ? money(value) : number(Math.round(value))));
+      }
+      for (const seriesEntry of series) {
+        svg.append(svgNode('polyline', { points: seriesEntry.values.map((value, i) => `${x(i)},${y(value)}`).join(' '), fill: 'none', stroke: seriesEntry.color, 'stroke-width': 1.7 }));
+        seriesEntry.values.forEach((value, i) => {
+          const circle = svgNode('circle', { cx: x(i), cy: y(value), r: 2.5, fill: seriesEntry.color });
+          circle.append(svgNode('title', {}, `${dates[i]} · ${seriesEntry.name}: ${moneyAxis ? money(value) : number(value)}`));
+          svg.append(circle);
+        });
+      }
+      const interval = Math.max(1, Math.ceil(dates.length / 6));
+      dates.forEach((day, i) => { if (i % interval === 0) svg.append(svgNode('text', { x: x(i), y: height - 5, 'text-anchor': 'middle' }, day.slice(5))); });
+    }
+
+    function renderCharts(data) {
+      const theme = getComputedStyle(document.documentElement);
+      const small = theme.getPropertyValue('--small').trim() || '#72B7F2';
+      const strong = theme.getPropertyValue('--strong').trim() || '#F2C85B';
+      chart($('cost-chart'), [
+        { name: 'Recorded spend', color: small, values: data.trend.map((day) => day.costUSD) },
+        { name: 'Strong-only estimate', color: strong, values: data.trend.map((day) => day.allStrongCostUSD) },
+      ], true);
+    }
+
+    function renderChoiceGrid(container, experiment) {
+      const choices = experiment.choices;
+      const compared = experiment.agreement.compared;
+      const cells = [
+        ['bothSmall', 'Both suggest Small', false],
+        ['aiSmallRulesStrong', 'AI: Small · Rules: Strong', true],
+        ['aiStrongRulesSmall', 'AI: Strong · Rules: Small', true],
+        ['bothStrong', 'Both suggest Strong', false],
+      ];
+      container.replaceChildren(...cells.map(([key, label, different]) => {
+        const count = choices[key];
+        const node = el('div', undefined, 'choice-cell' + (different ? ' different' : ''));
+        node.append(el('strong', number(count)), el('div', label), el('div', compared ? `${pct(count / compared)} of ${number(compared)} compared messages` : 'No compared messages yet', 'muted'));
+        return node;
+      }));
+    }
+
+    function renderOverviewGraphs(data) {
+      const theme = getComputedStyle(document.documentElement);
+      const small = theme.getPropertyValue('--small').trim();
+      const strong = theme.getPropertyValue('--strong').trim();
+      const savings = data.totals.allStrongCostUSD - data.totals.costUSD;
+      $('overview-spend').textContent = `${money(data.totals.costUSD)} spent · ${money(Math.abs(savings))} ${savings < 0 ? 'above estimate' : 'estimated saving'}`;
+      const { unpricedRequests, missingAllStrongRequests } = data.coverage;
+      $('overview-coverage').textContent = unpricedRequests || missingAllStrongRequests
+        ? `Incomplete pricing: ${number(unpricedRequests)} calls unpriced; ${number(missingAllStrongRequests)} missing comparison costs. Includes selection fees.`
+        : 'All calls priced · includes AI model-selection fees';
+      const cumulative = (field) => { let sum = 0; return data.trend.map((day) => sum += day[field]); };
+      chart($('cumulative-chart'), [
+        { name: 'Cumulative recorded spend', color: small, values: cumulative('costUSD') },
+        { name: 'Cumulative Strong-only estimate', color: strong, values: cumulative('allStrongCostUSD') },
+      ], true);
+      renderModelLines(data, small, strong);
+      const { matching, compared } = data.experiment.agreement;
+      $('overview-choice-summary').textContent = compared
+        ? `Different suggestions on ${number(compared - matching)} of ${number(compared)} compared messages. Highlighted cells show which direction.`
+        : 'No compared messages in this range. Historical calls without both suggestions are excluded.';
+      renderChoiceGrid($('overview-choice-grid'), data.experiment);
+    }
+
+    function renderModelLines(data, small, strong) {
+      chart($('activity-chart'), [
+        { name: 'Small calls', color: small, values: data.trend.map((day) => day.tiers.weak) },
+        { name: 'Strong calls', color: strong, values: data.trend.map((day) => day.tiers.strong) },
+      ], false);
+      $('model-use-summary').textContent = `${number(data.routing.tiers.weak || 0)} Small · ${number(data.routing.tiers.strong || 0)} Strong · ${number(data.routing.tiers.unknown || 0)} unknown calls total. Days without activity are omitted.`;
+    }
+
+    function renderView(data) {
+      const focused = document.activeElement;
+      const focusKey = focused?.dataset.focusKey;
+      const scrollPositions = [...document.querySelectorAll('.scroll')].map((node) => [node, node.scrollTop, node.scrollLeft]);
+      if (activeView === 'live') renderLive(data);
+      if (activeView === 'spending') renderSpending(data);
+      if (activeView === 'sessions') renderSessions(data);
+      if (activeView === 'experiment') renderExperiment(data);
+      if (activeView === 'performance') renderPerformance(data);
+      scrollPositions.forEach(([node, top, left]) => { node.scrollTop = top; node.scrollLeft = left; });
+      if (focusKey && !focused.isConnected) {
+        const view = $('view-' + activeView);
+        const replacement = [...view.querySelectorAll('[data-focus-key]')].find((node) => node.dataset.focusKey === focusKey);
+        view.tabIndex = -1;
+        (replacement || view).focus({ preventScroll: true });
+      }
+    }
+
+    function renderNotice(data) {
+      const notice = $('notice');
+      notice.hidden = Boolean(data.logAvailable) && !data.invalidRecords;
+      notice.textContent = data.logError || (!data.logAvailable
+        ? 'No local decision log found yet. This page will update when the file appears.'
+        : `${data.invalidRecords} invalid log records skipped. Valid records are still shown.`);
+    }
+
+    async function refresh() {
+      if (running) return;
+      running = true;
+      const requestedRange = range.value;
+      try {
+        const response = await fetch('/api/dashboard?range=' + encodeURIComponent(requestedRange), { cache: 'no-store', credentials: 'same-origin' });
+        if (!response.ok) throw new Error('Local dashboard returned HTTP ' + response.status);
+        const data = await response.json();
+        if (range.value !== requestedRange) return;
+        liveClockAnchor = { serverTime: Date.parse(data.generatedAt), receivedAt: performance.now() };
+        const liveIds = (data.liveRequests || []).map((request) => request.requestId);
+        const newLiveIds = seenLiveRequests === null ? [] : liveIds.filter((id) => !seenLiveRequests.has(id));
+        freshLiveRequests = activeView === 'live' ? new Set(newLiveIds) : new Set();
+        seenLiveRequests = new Set(liveIds);
+        latestData = data;
+        const signature = requestedRange + JSON.stringify({ ...data, generatedAt: null });
+        const textSelected = window.getSelection()?.isCollapsed === false;
+        if (signature !== renderedData && !textSelected) { renderView(data); renderedData = signature; }
+        renderNotice(data);
+        $('refresh-status').classList.remove('stale');
+        $('refresh-status').textContent = textSelected ? 'Text selected · display updates held' : 'Read ' + time(data.generatedAt) + ' · 1s refresh';
+      } catch (error) {
+        $('refresh-status').classList.add('stale');
+        $('refresh-status').textContent = 'Refresh failed · retrying';
+        $('notice').hidden = false;
+        $('notice').textContent = 'Could not refresh the local log. Displayed data may be stale. ' + String(error);
+      } finally {
+        running = false;
+        if (range.value !== requestedRange) refresh();
+      }
+    }
+
+    navigation.forEach((button) => button.addEventListener('click', () => showView(button.dataset.view)));
+    $('session-sort').addEventListener('change', () => { if (latestData) renderSessions(latestData); });
+    $('live-window').addEventListener('change', () => { if (latestData && activeView === 'live') renderLiveTimeline(latestData); });
+    window.addEventListener('resize', () => {
+      if (!latestData) return;
+      if (activeView === 'live') { renderOverviewGraphs(latestData); renderLiveTimeline(latestData); }
+      if (activeView === 'spending') renderCharts(latestData);
+    });
+    range.addEventListener('change', () => { selectedRequest = null; refresh(); });
+    // Independent of log polling: the rolling window keeps moving during quiet periods.
+    setInterval(advanceLiveTimeline, 100);
+    document.addEventListener('visibilitychange', advanceLiveTimeline);
+    refresh();
+    setInterval(refresh,1000);
+  })();
+  </script>
+</body>
+</html>
