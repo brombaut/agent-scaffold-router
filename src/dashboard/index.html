@@ -112,7 +112,11 @@
     .live-heading h2 { font-size: 14px; }
     .live-window { display: flex; align-items: center; gap: 8px; color: var(--quiet); font-size: 11px; white-space: nowrap; }
     .live-chart { height: 94px; margin-top: 5px; }
-    .live-marker { transform-box: fill-box; transform-origin: center; }
+    .live-marker { transform-box: fill-box; transform-origin: center; cursor: help; stroke: transparent; stroke-width: 18px; pointer-events: all; }
+    .live-marker:hover, .live-marker:focus { outline: none; stroke: var(--ink); stroke-opacity: .25; }
+    .live-tooltip { position: fixed; z-index: 10; width: 300px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 5px; background: var(--surface-raised); color: var(--ink); box-shadow: 0 8px 28px #0008; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+    .live-tooltip-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+    .live-tooltip p + p { margin-top: 5px; }
     .live-marker.weak { fill: var(--small); color: var(--small); }
     .live-marker.strong { fill: var(--strong); color: var(--strong); }
     .live-marker.unknown { fill: #aab3ad; color: #aab3ad; }
@@ -310,7 +314,8 @@
               <h2>Live routing</h2>
               <div class="live-window"><label for="live-window">Show last</label><select id="live-window"><option value="5" selected>5 min</option><option value="15">15 min</option><option value="60">60 min</option></select></div>
             </div>
-            <svg id="live-chart" class="chart live-chart" role="img" aria-label="Completed model calls in the last 5 minutes"></svg>
+            <svg id="live-chart" class="chart live-chart" role="group" aria-label="Completed model calls in the last 5 minutes"></svg>
+            <div id="live-tooltip" class="live-tooltip" role="tooltip" hidden></div>
             <div class="live-meta"><span id="live-count">No calls in this window</span><span>Each marker is one completed call · newest at right</span></div>
           </section>
           <div class="overview-graphs">
@@ -424,6 +429,7 @@
     let freshLiveRequests = new Set();
     let liveClockAnchor = null;
     let liveTimeline = null;
+    let liveTooltipRequestId = null;
     const liveNow = () => liveClockAnchor
       ? liveClockAnchor.serverTime + performance.now() - liveClockAnchor.receivedAt
       : Date.now();
@@ -479,6 +485,7 @@
     }
 
     function showView(view) {
+      hideLiveTooltip();
       activeView = view;
       for (const name of Object.keys(titles)) $('view-' + name).hidden = name !== view;
       navigation.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
@@ -507,6 +514,43 @@
       button.disabled = !key || key === '(none)';
       button.addEventListener('click', () => openSession(key));
       return button;
+    }
+
+    function hideLiveTooltip() {
+      $('live-tooltip').hidden = true;
+      liveTooltipRequestId = null;
+    }
+
+    function positionLiveTooltip() {
+      if (!liveTooltipRequestId) return;
+      const entry = liveTimeline?.markers.find(({ request }) => request.requestId === liveTooltipRequestId);
+      if (!entry || activeView !== 'live' || document.hidden) { hideLiveTooltip(); return; }
+      const tooltip = $('live-tooltip');
+      const dot = entry.marker.getBoundingClientRect();
+      const box = tooltip.getBoundingClientRect();
+      const left = Math.max(8, Math.min(window.innerWidth - box.width - 8, dot.left + dot.width / 2 - box.width / 2));
+      const top = dot.top >= box.height + 8 ? dot.top - box.height : dot.bottom;
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = Math.max(8, Math.min(window.innerHeight - box.height - 8, top)) + 'px';
+    }
+
+    function showLiveTooltip(request) {
+      liveTooltipRequestId = request.requestId;
+      const tooltip = $('live-tooltip');
+      const heading = el('div', undefined, 'live-tooltip-heading');
+      heading.append(tierLabel(request.tier), el('span', time(request.ts), 'time'));
+      tooltip.replaceChildren(heading);
+      tooltip.append(el('p', request.upstreamModel || 'Model not recorded', 'technical'));
+      tooltip.append(el('p', reasonLabel(request.reason)));
+      tooltip.append(el('p', request.reason || 'No exact reason recorded', 'technical'));
+      tooltip.append(el('p', conversationLabel(request.sessionKey)));
+      const message = request.turnIndex == null ? 'Message not recorded' : 'Message ' + request.turnIndex;
+      const cost = request.costUSD == null ? 'Cost not recorded' : money(request.costUSD) + ' call cost (excludes selection fee)';
+      tooltip.append(el('p', `${message} · ${duration(request.latencyMs)} · HTTP ${request.status}`, 'muted'));
+      tooltip.append(el('p', cost, 'muted'));
+      if (request.error) tooltip.append(el('p', request.error, 'error-text'));
+      tooltip.hidden = false;
+      positionLiveTooltip();
     }
 
     function renderLiveTimeline(data) {
@@ -547,19 +591,30 @@
         const marker = svgNode('circle', {
           cx: position,
           cy: baseline + offsets[lane % offsets.length],
-          r: 4,
+          r: 7,
           class: 'live-marker ' + tier + (freshLiveRequests.delete(request.requestId) ? ' flash' : ''),
           tabindex: 0,
           'aria-label': `${time(request.ts)} · ${tierName(tier)} · ${reasonLabel(request.reason)} · HTTP ${request.status}`,
         });
-        marker.append(svgNode('title', {}, `${time(request.ts)} · ${tierName(tier)} · ${reasonLabel(request.reason)} · HTTP ${request.status}`));
+        marker.dataset.focusKey = 'live:' + request.requestId;
+        marker.setAttribute('aria-describedby', 'live-tooltip');
+        marker.addEventListener('pointerenter', () => showLiveTooltip(request));
+        marker.addEventListener('focus', () => showLiveTooltip(request));
+        const leave = (event) => {
+          if (event.relatedTarget === $('live-tooltip') || $('live-tooltip').contains(event.relatedTarget)) return;
+          if (liveTooltipRequestId === request.requestId) hideLiveTooltip();
+        };
+        marker.addEventListener('pointerleave', leave);
+        marker.addEventListener('blur', leave);
         svg.append(marker);
-        markers.push({ marker, ts, tier });
+        markers.push({ marker, ts, tier, request });
       }
       const empty = svgNode('text', { x: width / 2, y: 26, 'text-anchor': 'middle' }, 'No calls in this window.');
       svg.append(empty);
       liveTimeline = { minutes, width, left, right, ticks, markers, empty };
       advanceLiveTimeline();
+      const selected = markers.find(({ request }) => request.requestId === liveTooltipRequestId);
+      if (selected) showLiveTooltip(selected.request);
     }
 
     // Move existing SVG nodes instead of rebuilding them: pulses and keyboard focus survive.
@@ -584,6 +639,7 @@
       const text = `${number(count)} calls · ${number(counts.weak)} Small · ${number(counts.strong)} Strong${counts.unknown ? ` · ${number(counts.unknown)} unknown` : ''}`;
       if ($('live-count').textContent !== text) $('live-count').textContent = text;
       empty.style.display = count ? 'none' : '';
+      positionLiveTooltip();
     }
 
     function renderLive(data) {
@@ -986,7 +1042,10 @@
     range.addEventListener('change', () => { selectedRequest = null; refresh(); });
     // Independent of log polling: the rolling window keeps moving during quiet periods.
     setInterval(advanceLiveTimeline, 100);
-    document.addEventListener('visibilitychange', advanceLiveTimeline);
+    document.addEventListener('visibilitychange', () => { hideLiveTooltip(); advanceLiveTimeline(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideLiveTooltip(); });
+    window.addEventListener('scroll', positionLiveTooltip, true);
+    $('live-tooltip').addEventListener('pointerleave', hideLiveTooltip);
     refresh();
     setInterval(refresh,1000);
   })();

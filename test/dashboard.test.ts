@@ -116,10 +116,19 @@ describe("dashboard data", () => {
       logLine({ requestId: "newest", ts: "2026-10-26T11:59:00.000Z", tier: "strong", classifierRaw: "private output" }),
       logLine({ requestId: "future", ts: "2026-10-26T12:01:00.000Z" }),
     ], new Date("2026-10-26T12:00:00.000Z"));
-    expect(data.liveRequests).toEqual([
+    expect(data.liveRequests).toHaveLength(2);
+    expect(data.liveRequests).toMatchObject([
       { requestId: "boundary", ts: "2026-10-26T11:00:00.000Z", tier: "weak", reason: "heuristic:score=0[]", status: 200 },
       { requestId: "newest", ts: "2026-10-26T11:59:00.000Z", tier: "strong", reason: "heuristic:score=0[]", status: 200 },
     ]);
+    for (const request of data.liveRequests) {
+      expect(Object.keys(request).sort()).toEqual([
+        "requestId", "ts", "sessionKey", "turnIndex", "tier", "reason", "upstreamModel", "costUSD", "latencyMs", "status", "error",
+      ].sort());
+      expect(request).not.toHaveProperty("turnPreview");
+      expect(request).not.toHaveProperty("classifierRaw");
+      expect(request).toMatchObject({ sessionKey: "session-a", turnIndex: 0, costUSD: 0.01, status: 200 });
+    }
   });
 
   test("recent requests are newest first, limited to 80, and expose only ledger fields", () => {
@@ -365,8 +374,8 @@ test("live timeline advances existing markers and expires calls without new log 
     markers: [{ marker, ts: 150_000, tier: "strong" }],
     empty: { style: { display: "" } },
   };
-  const tick = new Function("liveTimeline", "activeView", "document", "liveNow", "number", "$", body!);
-  const advance = () => tick(timeline, "live", { hidden: false }, () => now, String, () => count);
+  const tick = new Function("liveTimeline", "activeView", "document", "liveNow", "number", "$", "positionLiveTooltip", body!);
+  const advance = () => tick(timeline, "live", { hidden: false }, () => now, String, () => count, () => {});
   advance();
   const firstX = marker.x;
   const firstLabel = label.textContent;
@@ -383,6 +392,102 @@ test("live timeline advances existing markers and expires calls without new log 
   expect(timeline.markers).toHaveLength(0);
   expect(count.textContent).toBe("0 calls · 0 Small · 0 Strong");
   expect(timeline.empty.style.display).toBe("");
+});
+
+test("live dots show immediate, safely rendered tooltips on hover and focus", async () => {
+  const html = await Bun.file(new URL("../src/dashboard/index.html", import.meta.url)).text();
+  const functions = html.match(/    function hideLiveTooltip\(\) \{([\s\S]*?)    function renderLive\(data\)/)?.[0].replace(/    function renderLive\(data\)$/, "");
+  expect(functions).toBeDefined();
+  // Execute the production timeline/tooltip functions with a small DOM stand-in.
+  class Node {
+    children: Node[] = [];
+    dataset: Record<string, string> = {};
+    style: Record<string, string> = {};
+    attrs: Record<string, any> = {};
+    events: Record<string, (event: any) => void> = {};
+    hidden = true;
+    textContent = "";
+    clientWidth = 550;
+    value = "5";
+    rect = { left: 480, top: 50, bottom: 58, width: 8, height: 8 };
+    constructor(public tag = "div", text?: unknown) { if (text != null) this.textContent = String(text); }
+    append(...nodes: Node[]) { this.children.push(...nodes); }
+    replaceChildren(...nodes: Node[]) { this.children = nodes; }
+    setAttribute(key: string, value: any) { this.attrs[key] = value; }
+    getBoundingClientRect() { return this.rect; }
+    addEventListener(name: string, listener: (event: any) => void) { this.events[name] = listener; }
+    contains(node: Node | null): boolean { return node === this || this.children.some((child) => child.contains(node)); }
+    remove() { this.attrs.removed = true; }
+    text(): string { return [this.textContent, ...this.children.map((child) => child.text())].join(" "); }
+  }
+  const tooltip = new Node();
+  tooltip.rect = { left: 0, top: 0, bottom: 170, width: 300, height: 170 };
+  const chart = new Node("svg");
+  const nodes: Record<string, Node> = { "live-chart": chart, "live-window": new Node(), "live-tooltip": tooltip, "live-count": new Node() };
+  let now = 300_000;
+  const document = { hidden: false };
+  const domNode = (tag: string, text?: unknown) => new Node(tag, text);
+  const svgNode = (tag: string, attrs: Record<string, unknown>, text?: unknown) => {
+    const node = new Node(tag, text);
+    node.attrs = attrs;
+    return node;
+  };
+  const create = new Function("$", "document", "window", "liveNow", "el", "svgNode", "tierLabel", "time", "reasonLabel", "conversationLabel", "duration", "money", "number", "tierName", `
+    let liveTooltipRequestId = null, liveTimeline = null, activeView = 'live';
+    const freshLiveRequests = new Set();
+    ${functions}
+    return { renderLiveTimeline, advanceLiveTimeline, positionLiveTooltip, hideLiveTooltip };
+  `);
+  const ui = create((id: string) => nodes[id], document, { innerWidth: 500, innerHeight: 400 }, () => now,
+    domNode, svgNode, (tier: string) => new Node("span", tier), String, (reason: string) => "Reason: " + reason,
+    () => "Conversation <img src=x onerror=alert(1)>", (n: unknown) => `${n} ms`, (n: number) => `$${n.toFixed(4)}`, String, String);
+  const request = {
+    requestId: "one", ts: new Date(150_000).toISOString(), tier: "strong", reason: "classifier:strong", status: 200,
+    upstreamModel: "test-model", turnIndex: 2, sessionKey: "s", costUSD: 0.01, latencyMs: 123,
+    error: "<script>alert(1)</script>",
+  };
+  const marker = () => chart.children.find((node) => node.tag === "circle")!;
+  ui.renderLiveTimeline({ liveRequests: [request] });
+  expect(tooltip.hidden).toBe(true);
+  expect(marker().children).toHaveLength(0); // No delayed native SVG title.
+  expect(marker().attrs.r).toBe(7);
+  expect(html).toContain("stroke-width: 18px; pointer-events: all");
+  expect(marker().attrs["aria-describedby"]).toBe("live-tooltip");
+  marker().events.pointerenter!({});
+  expect(tooltip.hidden).toBe(false); // Synchronous: no timer or extra fetch.
+  expect(tooltip.text()).toContain("test-model");
+  expect(tooltip.text()).toContain("classifier:strong");
+  expect(tooltip.text()).toContain("Message 2 · 123 ms · HTTP 200");
+  expect(tooltip.text()).toContain("$0.0100 call cost (excludes selection fee)");
+  expect(tooltip.text()).toContain("Conversation <img src=x onerror=alert(1)>");
+  expect(tooltip.text()).toContain("<script>alert(1)</script>");
+  expect(tooltip.children.every((node) => !["img", "script"].includes(node.tag))).toBe(true);
+  expect(tooltip.style.left).toBe("192px"); // Clamped to the right viewport edge.
+  expect(tooltip.style.top).toBe("58px"); // Flips below a dot near the top.
+  marker().events.pointerleave!({ relatedTarget: tooltip });
+  expect(tooltip.hidden).toBe(false); // Popup remains readable when hovered.
+  marker().events.pointerleave!({ relatedTarget: null });
+  expect(tooltip.hidden).toBe(true);
+  marker().events.focus!({});
+  expect(tooltip.hidden).toBe(false);
+  ui.renderLiveTimeline({ liveRequests: [request] });
+  expect(tooltip.hidden).toBe(false); // Polling rebuild retains the selected request.
+  marker().events.blur!({ relatedTarget: null });
+  expect(tooltip.hidden).toBe(true);
+  marker().events.focus!({});
+  now = 450_001;
+  ui.advanceLiveTimeline();
+  expect(tooltip.hidden).toBe(true); // Expired dots cannot leave stale popups.
+  now = 300_000;
+  ui.renderLiveTimeline({ liveRequests: [{ ...request, costUSD: null, upstreamModel: null, turnIndex: null, error: null, tier: null }] });
+  marker().events.focus!({});
+  expect(tooltip.text()).toContain("Cost not recorded");
+  expect(tooltip.text()).toContain("Model not recorded");
+  expect(tooltip.text()).toContain("Message not recorded");
+  document.hidden = true;
+  ui.positionLiveTooltip();
+  expect(tooltip.hidden).toBe(true);
+  expect(html).toContain("if (event.key === 'Escape') hideLiveTooltip()");
 });
 
 test("date filters retain conversation labels but exclude old metrics and messages", async () => {

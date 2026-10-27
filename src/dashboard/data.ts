@@ -62,7 +62,7 @@ export interface DashboardData {
     classifierCostUSD: number;
   };
   sessions: DashboardSession[];
-  liveRequests: Array<Pick<DecisionLogLine, "requestId" | "ts" | "tier" | "reason" | "status">>;
+  liveRequests: Array<Pick<DecisionLogLine, "requestId" | "ts" | "sessionKey" | "turnIndex" | "tier" | "reason" | "upstreamModel" | "costUSD" | "latencyMs" | "status" | "error">>;
   recentRequests: Array<Pick<DecisionLogLine, "requestId" | "ts" | "sessionKey" | "turnIndex" | "kind" | "tier" | "reason" | "requestedModel" | "upstreamModel" | "costUSD" | "latencyMs" | "status" | "error">>;
   performance: {
     byTier: Record<string, { samples: number; latencyMedianMs: number | null; latencyP95Ms: number | null; ttftSamples: number; ttftMedianMs: number | null; ttftP95Ms: number | null }>;
@@ -295,7 +295,8 @@ export function buildDashboard(lines: DecisionLogLine[], now = new Date(), ident
       const ts = Date.parse(line.ts);
       return ts >= now.getTime() - 60 * 60 * 1000 && ts <= now.getTime();
     }).map(
-      ({ requestId, ts, tier, reason, status }) => ({ requestId, ts, tier, reason, status }),
+      ({ requestId, ts, sessionKey, turnIndex, tier, reason, upstreamModel, costUSD, latencyMs, status, error }) =>
+        ({ requestId, ts, sessionKey, turnIndex, tier, reason, upstreamModel, costUSD, latencyMs, status, error }),
     ),
     recentRequests: sortedLines(lines).reverse().slice(0, 80).map(
       ({ requestId, ts, sessionKey, turnIndex, kind, tier, reason, requestedModel, upstreamModel, costUSD, latencyMs, status, error }) =>

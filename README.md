@@ -147,6 +147,10 @@ can trigger several model calls. Select all history or the last 24 hours, 7 days
   over a rolling 5-, 15-, or 60-minute window (5 minutes by default); new Small or Strong
   calls briefly pulse in their tier color. The window keeps sliding during idle periods,
   with old calls expiring automatically; new log entries are still fetched every second.
+  Hover a dot or focus it with Tab for an instant popup showing its model tier, upstream
+  model, readable and exact routing reason, conversation, message number, call cost,
+  latency, HTTP status, and any recorded error. Missing costs are labeled, not treated
+  as free; call costs exclude selection fees. Press Escape to dismiss the popup.
   Three graphs follow: cumulative recorded
   spend versus the same-token Strong-only estimate, daily Small and Strong call-count
   lines, and four AI-versus-rules choice counts. Unknown-tier calls are listed separately. Cumulative spending starts at
