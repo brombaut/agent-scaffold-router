@@ -153,7 +153,8 @@ can trigger several model calls. Select all history or the last 24 hours, 7 days
   as free; call costs exclude selection fees. Press Escape to dismiss the popup.
   Three graphs follow: cumulative recorded
   spend versus the same-token Strong-only estimate, daily Small and Strong call-count
-  lines, and four AI-versus-rules choice counts. Unknown-tier calls are listed separately. Cumulative spending starts at
+  lines, and four AI-versus-rules choice counts. Hover a line chart (or focus it with Tab
+  and use the arrow keys) to see every series' value for that day. Unknown-tier calls are listed separately. Cumulative spending starts at
   the beginning of the selected range, not the beginning of all history. Missing pricing
   is flagged. Below are conversation/message/call counts and the latest 80 completed
   model calls with readable reasons. Expand a call for its exact reason, upstream model,

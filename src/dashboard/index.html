@@ -150,12 +150,11 @@
     .chart { display: block; width: 100%; height: 170px; }
     .chart text { fill: #9aa29c; font: 9px var(--mono); }
     .chart line { stroke: #303638 !important; }
-    .chart [stroke="#286756"] { stroke: var(--small) !important; }
-    .chart [stroke="#98551c"] { stroke: var(--strong) !important; }
-    .chart [stroke="#232c29"] { stroke: #aab3ad !important; }
-    .chart [fill="#286756"] { fill: var(--small) !important; }
-    .chart [fill="#98551c"] { fill: var(--strong) !important; }
-    .chart [fill="#232c29"] { fill: #aab3ad !important; }
+    .chart .chart-guide { stroke: var(--quiet) !important; stroke-dasharray: 3 3; }
+    .chart[tabindex] { cursor: crosshair; }
+    .chart-tooltip { width: auto; min-width: 220px; pointer-events: none; }
+    .chart-tooltip-row { display: flex; justify-content: space-between; gap: 18px; margin-top: 4px; }
+    .chart-tooltip-row span { display: inline-flex; align-items: center; gap: 6px; color: var(--quiet); }
     .chart-label { margin: 10px 0 7px; font-size: 11px; font-weight: 620; }
     .chart-legend { margin-top: 5px; }
     .view-intro { margin: 7px 0 19px; max-width: 760px; color: var(--quiet); font-size: 12px; }
@@ -303,8 +302,6 @@
           <div class="intro">
             <p class="eyebrow" id="period-label">Across selected history</p>
             <h2 id="routing-headline">Reading the router’s record.</h2>
-            <p class="explanation" id="routing-explanation">Each request below is one completed call to a model. A user turn can include several calls as the agent uses tools.</p>
-            <div class="legend" style="margin-top:12px"><span><i class="swatch small"></i>Small · lower cost</span><span><i class="swatch strong"></i>Strong · higher capability</span></div>
             <div id="routing-strip" class="routing-strip" aria-label="Request routing split"></div>
             <div id="routing-labels" class="split-labels"></div>
             <div id="activity-counts" class="statline"></div>
@@ -316,61 +313,54 @@
             </div>
             <svg id="live-chart" class="chart live-chart" role="group" aria-label="Completed model calls in the last 5 minutes"></svg>
             <div id="live-tooltip" class="live-tooltip" role="tooltip" hidden></div>
-            <div class="live-meta"><span id="live-count">No calls in this window</span><span>Each marker is one completed call · newest at right</span></div>
+            <div class="live-meta"><span id="live-count">No calls in this window</span></div>
           </section>
           <div class="overview-graphs">
             <section class="graph-panel" aria-label="Cumulative spending">
-              <h2>Is the estimated saving growing?</h2>
+              <h2>Cumulative spend</h2>
               <p id="overview-spend" class="metric">—</p>
               <p id="overview-coverage" class="fine muted"></p>
               <svg id="cumulative-chart" class="chart" role="img" aria-label="Cumulative recorded spend versus Strong-only estimate"></svg>
-              <div class="legend"><span><i class="swatch small"></i>Recorded spend</span><span><i class="swatch strong"></i>Strong-only estimate</span></div>
-              <p class="fine muted" style="margin-top:8px">Cumulative within the selected range · same tokens repriced, not a separate run.</p>
+              <div class="legend"><span><i class="swatch small"></i>Actual</span><span><i class="swatch strong"></i>If all Strong</span></div>
             </section>
             <section class="graph-panel" aria-label="Model use over time">
-              <h2>Which models are doing the work?</h2>
-              <p class="fine muted">Model calls per UTC day</p>
+              <h2>Calls per day</h2>
               <svg id="activity-chart" class="chart" role="img" aria-label="Small and Strong model calls by day"></svg>
-              <div class="legend"><span><i class="swatch small"></i>Small calls</span><span><i class="swatch strong"></i>Strong calls</span></div>
-              <p id="model-use-summary" class="fine muted" style="margin-top:8px"></p>
+              <div class="legend"><span><i class="swatch small"></i>Small</span><span><i class="swatch strong"></i>Strong</span></div>
             </section>
             <section class="graph-panel overview-wide" aria-label="AI choices versus rules">
-              <h2>Does AI choose differently from the rules?</h2>
+              <h2>AI vs rules</h2>
               <p id="overview-choice-summary" class="fine muted"></p>
               <div id="overview-choice-grid" class="choice-grid"></div>
-              <p class="fine muted">One comparison per evaluated user message. Different choices do not establish better task results.</p>
             </section>
           </div>
-          <div class="section-head"><h2>Recent activity</h2><span id="ledger-caption" class="section-note">Newest first · completed calls only</span></div>
-          <p class="fine muted" style="margin-bottom:10px">Conversation labels use a short first-message excerpt when available. Open one for its messages; raw IDs are in details.</p>
+          <div class="section-head"><h2>Recent activity</h2><span id="ledger-caption" class="section-note"></span></div>
           <div id="request-ledger" class="scroll ledger-scroll"></div>
           <details class="disclosure" id="routing-disclosure">
-            <summary>Routing details · overrides, escalations &amp; exact reasons</summary>
+            <summary>Routing reasons</summary>
             <div class="detail-body"><p id="override-summary" class="explanation fine"></p><div id="reason-table" class="scroll"></div></div>
           </details>
         </section>
         <section id="view-spending" class="view" aria-label="Spending" hidden>
           <h2>Recorded spend</h2>
-          <p class="view-intro">Actual recorded charges include model calls and classifier charges. The comparison is an estimate that reprices the same tokens at the Strong tier; it is not a separate all-Strong run.</p>
           <div class="spend">
-            <p class="eyebrow">Actual recorded spend</p>
+            <p class="eyebrow">Actual spend</p>
             <div id="spend-value" class="spend-value">—</div>
-            <p id="cost-coverage" class="spend-footnote">Includes classifier charges.</p>
+            <p id="cost-coverage" class="spend-footnote"></p>
             <div class="cost-comparison">
               <div id="savings-summary" class="fine">Waiting for cost data.</div>
               <div class="comparison-track" aria-label="Recorded spend compared with all-strong estimate"><span id="cost-fill" style="width:0%"></span></div>
-              <p class="spend-footnote" id="all-strong-value">Same-token all-Strong estimate: waiting for cost data.</p>
+              <p class="spend-footnote" id="all-strong-value"></p>
             </div>
           </div>
-          <div class="section-head"><h2>Spend over time</h2><span class="section-note">Actual vs same-token all-Strong estimate · UTC day</span></div>
+          <div class="section-head"><h2>Spend over time</h2><span class="section-note">UTC day</span></div>
           <svg id="cost-chart" class="chart" role="img" aria-label="Recorded spend and same-token all-strong estimate by day"></svg>
-          <div class="legend chart-legend"><span><i class="swatch small"></i>Actual recorded spend</span><span><i class="swatch strong"></i>All-Strong estimate</span></div>
+          <div class="legend chart-legend"><span><i class="swatch small"></i>Actual</span><span><i class="swatch strong"></i>If all Strong</span></div>
         </section>
         <section id="view-sessions" class="view" aria-label="Conversations" hidden>
           <h2>Conversations</h2>
-          <p class="view-intro">Each session is one conversation. A user message starts a turn; a turn may make several model calls. Select a session to inspect its recorded turns and message previews.</p>
           <div class="toolbar">
-            <div class="legend"><span><i class="swatch small"></i>Small · lower cost</span><span><i class="swatch strong"></i>Strong · higher capability</span><span>Each mark group is one user turn; two colors show a tier switch.</span></div>
+            <div class="legend"><span><i class="swatch small"></i>Small</span><span><i class="swatch strong"></i>Strong</span></div>
             <div><label for="session-sort">Sort </label><select id="session-sort"><option value="recent">Most recent</option><option value="cost">Highest cost</option><option value="turns">Most turns</option><option value="flips">Most tier flips</option></select></div>
           </div>
           <div id="sessions-table" class="scroll"></div>
@@ -379,31 +369,29 @@
         </section>
         <section id="view-experiment" class="view" aria-label="Routing comparison" hidden>
           <h2>Routing comparison</h2>
-          <p class="view-intro">Compare which model each selector chooses for the same tagged user messages. This measures selector agreement, not task success or model quality.</p>
           <div class="arm-columns">
-            <article class="arm"><h3>AI-selected conversations</h3><div id="arm-on-counts"></div><p>AI chooses the model. Counts below show experiment conversations and classified user messages.</p></article>
-            <article class="arm"><h3>Rule-selected conversations</h3><div id="arm-shadow-counts"></div><p>Keyword rules choose; AI prediction is recorded only. Counts below show experiment conversations and classified user messages.</p></article>
+            <article class="arm"><h3>AI-selected conversations</h3><div id="arm-on-counts"></div><p>AI picks the model</p></article>
+            <article class="arm"><h3>Rule-selected conversations</h3><div id="arm-shadow-counts"></div><p>Rules pick; AI is logged only</p></article>
           </div>
           <div class="experiment-verdict">
-            <div><p class="eyebrow">Selector predictions</p><h2 id="agreement-headline">No compared user messages yet.</h2><p id="agreement-explanation" class="explanation">A comparison requires both an AI prediction and a keyword-rule prediction for the same tagged user message.</p></div>
-            <aside class="side-note"><p class="eyebrow">Classifier charges</p><div id="classifier-cost" class="spend-value">—</div><p class="fine muted">Included in actual recorded spend; this is the total classifier charge for the selected period.</p></aside>
+            <div><h2 id="agreement-headline">No compared messages yet</h2></div>
+            <aside class="side-note"><p class="eyebrow">Classifier charges</p><div id="classifier-cost" class="spend-value">—</div></aside>
           </div>
           <div id="comparison-choice-grid" class="choice-grid" aria-label="AI and rules choice counts"></div>
-          <div class="section-head"><h2>Different predictions</h2><span class="section-note">One comparison per tagged user message</span></div>
+          <div class="section-head"><h2>Different predictions</h2></div>
           <div id="disagreements"></div>
-          <p class="explanation fine" style="margin-top:18px">Historical requests without an experiment arm are excluded. Overrides may have no AI prediction. Open a conversation to inspect its recorded message and what followed.</p>
         </section>
         <section id="view-performance" class="view" aria-label="Response timing and errors" hidden>
           <p class="eyebrow">Diagnostics</p>
           <h2 id="health-headline" class="health-heading">Reading completed requests.</h2>
-          <p class="view-intro">Total latency runs until the response finishes. Header timing measures time until response headers arrive — not true time to first token (TTFT). These are request measurements, not time to finish a user’s task.</p>
-          <div class="section-head"><h2>Response timing</h2><span class="section-note">Median = typical · p95 = 95% finished within this time</span></div>
+          <div class="section-head"><h2>Response timing</h2></div>
           <div id="performance-table" class="scroll"></div>
           <div class="section-head" style="margin-top:24px"><h2>Errors &amp; unusual responses</h2><span id="non200-summary" class="section-note"></span></div>
           <div id="failures" class="scroll"></div>
-          <details class="disclosure"><summary>HTTP statuses &amp; measurement notes</summary><div class="detail-body"><div id="status-summary" class="status-counts"></div><p class="explanation fine">Errors include HTTP status 400 or above and provider error events inside HTTP 200 responses. Other non-200 statuses are listed but are not necessarily errors. Missing header timings are excluded, not treated as zero. Headers can arrive before the model’s first token; true first-token timing is not available in this log. Median and p95 use nearest-rank percentiles. Small sample counts make comparisons noisy.</p></div></details>
+          <details class="disclosure"><summary>HTTP statuses &amp; measurement notes</summary><div class="detail-body"><div id="status-summary" class="status-counts"></div><p class="explanation fine">Duration runs until the response finishes. Header timing is time to response headers, not true time to first token. Errors include HTTP status 400 or above and provider error events inside HTTP 200 responses. Other non-200 statuses are listed but are not necessarily errors. Missing header timings are excluded, not treated as zero. Headers can arrive before the model’s first token; true first-token timing is not available in this log. Median and p95 use nearest-rank percentiles. Small sample counts make comparisons noisy.</p></div></details>
         </section>
-        <footer><span>READ-ONLY / decisions.jsonl<br>Small = lower-cost tier · Strong = higher-capability tier</span><span>Refreshes every second · times shown in your browser’s timezone<br>In-flight requests appear only after they are logged.</span></footer>
+        <footer><span>Read-only · decisions.jsonl</span><span>Local time · 1s refresh</span></footer>
+        <div id="chart-tooltip" class="live-tooltip chart-tooltip" role="tooltip" hidden></div>
       </main>
     </div>
   </div>
@@ -430,6 +418,7 @@
     let liveClockAnchor = null;
     let liveTimeline = null;
     let liveTooltipRequestId = null;
+    let hoveredChart = null;
     const liveNow = () => liveClockAnchor
       ? liveClockAnchor.serverTime + performance.now() - liveClockAnchor.receivedAt
       : Date.now();
@@ -485,6 +474,7 @@
     }
 
     function showView(view) {
+      hideChartTooltip();
       hideLiveTooltip();
       activeView = view;
       for (const name of Object.keys(titles)) $('view-' + name).hidden = name !== view;
@@ -657,9 +647,6 @@
         : strong > requests / 2 ? 'Mostly using Strong'
         : 'Mixed model use';
       if (requests && unknown > Math.max(small, strong)) $('routing-headline').textContent = 'Model information is missing for most calls';
-      $('routing-explanation').textContent = requests
-        ? `${number(small)} calls to Small · ${number(strong)} to Strong${unknown ? ` · ${number(unknown)} unknown` : ''}. One user message can trigger several model calls.`
-        : 'The dashboard is watching the local log. Try a wider period, or use the router to create new records.';
       const split = [];
       for (const [tier, count] of [['weak', small], ['strong', strong], ['unknown', unknown]]) {
         if (!count) continue;
@@ -701,19 +688,19 @@
       const missingEstimate = data.coverage.missingAllStrongRequests;
       $('cost-coverage').textContent = unpriced || missingEstimate
         ? `${number(unpriced)} calls have no recorded cost; ${number(missingEstimate)} have no comparison cost. Totals may be incomplete.`
-        : 'All calls have recorded costs. Includes the AI’s model-selection fees.';
+        : 'Includes classifier fees';
       const savings = totals.allStrongCostUSD - totals.costUSD;
       $('savings-summary').textContent = !totals.allStrongCostUSD ? 'No cost comparison available'
         : savings >= 0 ? `${money(savings)} estimated saving · ${totals.savingsPct.toFixed(1)}%`
         : `${money(-savings)} above the Strong-only estimate`;
       $('cost-fill').style.width = (totals.allStrongCostUSD ? Math.min(100, 100 * totals.costUSD / totals.allStrongCostUSD) : 0) + '%';
-      $('all-strong-value').textContent = `${money(totals.allStrongCostUSD)} if the same tokens had all used Strong`;
+      $('all-strong-value').textContent = `${money(totals.allStrongCostUSD)} if all Strong`;
       renderCharts(data);
     }
 
     function renderLedger(data) {
       const requests = data.recentRequests || [];
-      $('ledger-caption').textContent = `${number(requests.length)} latest completed calls · newest first`;
+      $('ledger-caption').textContent = `Latest ${number(requests.length)}`;
       const rows = [];
       for (const request of requests) {
         const row = el('tr');
@@ -831,13 +818,10 @@
       const experiment = data.experiment;
       for (const arm of ['on', 'shadow']) {
         const group = $('arm-' + arm + '-counts');
-        group.replaceChildren(el('span', number(experiment.sessions[arm]), 'arm-count'), el('span', `conversations · ${number(experiment.turns[arm])} messages evaluated`, 'arm-label'));
+        group.replaceChildren(el('span', number(experiment.sessions[arm]), 'arm-count'), el('span', `conversations · ${number(experiment.turns[arm])} messages`, 'arm-label'));
       }
       const { matching, compared } = experiment.agreement;
-      $('agreement-headline').textContent = compared ? `Different choices on ${number(compared - matching)} of ${number(compared)} messages` : 'No model choices to compare yet';
-      $('agreement-explanation').textContent = compared
-        ? `The AI and keyword rules suggested the same model on ${number(matching)} messages. Different choices do not necessarily mean better results.`
-        : 'Comparisons appear when the log contains both an AI suggestion and a rule-based suggestion for the same user message.';
+      $('agreement-headline').textContent = compared ? `Disagree on ${number(compared - matching)} of ${number(compared)} messages` : 'No compared messages yet';
       $('classifier-cost').textContent = money(experiment.classifierCostUSD);
       renderChoiceGrid($('comparison-choice-grid'), experiment);
       const disagreements = [...experiment.disagreements].reverse().map((entry) => {
@@ -887,32 +871,93 @@
       return node;
     }
 
+    function hideChartTooltip() {
+      $('chart-tooltip').hidden = true;
+      hoveredChart = null;
+      document.querySelectorAll('.chart-hover').forEach((node) => node.remove());
+    }
+
+    function showChartPoint(svg, i, clientX) {
+      const state = svg.chartState;
+      if (!state) return;
+      i = Math.max(0, Math.min(state.dates.length - 1, i));
+      state.index = i;
+      hoveredChart = svg;
+      svg.querySelectorAll('.chart-hover').forEach((node) => node.remove());
+      const hover = svgNode('g', { class: 'chart-hover' });
+      hover.append(svgNode('line', { x1: state.x(i), x2: state.x(i), y1: state.top, y2: state.bottom, class: 'chart-guide' }));
+      for (const s of state.series) hover.append(svgNode('circle', { cx: state.x(i), cy: state.y(s.values[i]), r: 4.5, fill: s.color }));
+      svg.append(hover);
+      const tooltip = $('chart-tooltip');
+      tooltip.replaceChildren(el('div', state.dates[i], 'time'));
+      for (const s of state.series) {
+        const line = el('div', undefined, 'chart-tooltip-row');
+        const name = el('span'); const swatch = el('i', undefined, 'swatch'); swatch.style.background = s.color;
+        name.append(swatch, ' ' + s.name);
+        line.append(name, el('strong', state.format(s.values[i]), 'numeric'));
+        tooltip.append(line);
+      }
+      tooltip.hidden = false;
+      const rect = svg.getBoundingClientRect();
+      const box = tooltip.getBoundingClientRect();
+      const anchor = clientX ?? rect.left + rect.width * state.x(i) / state.width;
+      const left = anchor + 14 + box.width > window.innerWidth - 8 ? anchor - 14 - box.width : anchor + 14;
+      tooltip.style.left = Math.max(8, left) + 'px';
+      tooltip.style.top = Math.max(8, Math.min(window.innerHeight - box.height - 8, rect.top + 8)) + 'px';
+    }
+
     function chart(svg, series, moneyAxis) {
       svg.replaceChildren();
-      const width = Math.max(340, svg.clientWidth || 550), height = 180;
-      const left = 76, right = 25, top = 16, bottom = 30;
+      const width = Math.max(340, svg.clientWidth || 550), height = 200;
+      const left = 64, right = 16, top = 12, bottom = 28;
       const values = series.flatMap((s) => s.values);
-      const max = Math.max(moneyAxis ? .0001 : 1, ...values);
+      const max = Math.max(moneyAxis ? .0001 : 1, ...values) * 1.08;
       const dates = latestData.trend.map((entry) => entry.date);
+      const format = moneyAxis ? money : number;
       svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-      if (!dates.length) { svg.append(svgNode('text', { x: left, y: 85 }, 'No activity in this period.')); return; }
+      if (!dates.length) {
+        svg.chartState = null;
+        if (hoveredChart === svg) hideChartTooltip();
+        svg.append(svgNode('text', { x: left, y: 85 }, 'No activity'));
+        return;
+      }
       const x = (i) => left + (width - left - right) * (dates.length === 1 ? .5 : i / (dates.length - 1));
       const y = (value) => top + (height - top - bottom) * (1 - value / max);
-      for (let step = 0; step <= 2; step++) {
-        const value = max * step / 2;
-        svg.append(svgNode('line', { x1: left, x2: width - right, y1: y(value), y2: y(value), stroke: getComputedStyle(document.documentElement).getPropertyValue('--rule').trim() || '#30353a' }));
-        svg.append(svgNode('text', { x: left - 7, y: y(value) + 3, 'text-anchor': 'end' }, moneyAxis ? money(value) : number(Math.round(value))));
+      for (let step = 0; step <= 3; step++) {
+        const value = max * step / 3;
+        svg.append(svgNode('line', { x1: left, x2: width - right, y1: y(value), y2: y(value) }));
+        svg.append(svgNode('text', { x: left - 8, y: y(value) + 4, 'text-anchor': 'end' }, moneyAxis ? money(value) : number(Math.round(value))));
       }
-      for (const seriesEntry of series) {
-        svg.append(svgNode('polyline', { points: seriesEntry.values.map((value, i) => `${x(i)},${y(value)}`).join(' '), fill: 'none', stroke: seriesEntry.color, 'stroke-width': 1.7 }));
-        seriesEntry.values.forEach((value, i) => {
-          const circle = svgNode('circle', { cx: x(i), cy: y(value), r: 2.5, fill: seriesEntry.color });
-          circle.append(svgNode('title', {}, `${dates[i]} · ${seriesEntry.name}: ${moneyAxis ? money(value) : number(value)}`));
-          svg.append(circle);
-        });
+      for (const s of series) {
+        const points = s.values.map((value, i) => `${x(i)},${y(value)}`);
+        svg.append(svgNode('polygon', { points: `${x(0)},${y(0)} ${points.join(' ')} ${x(dates.length - 1)},${y(0)}`, fill: s.color, 'fill-opacity': .08 }));
+        svg.append(svgNode('polyline', { points: points.join(' '), fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'vector-effect': 'non-scaling-stroke' }));
+        if (dates.length === 1) svg.append(svgNode('circle', { cx: x(0), cy: y(s.values[0]), r: 3, fill: s.color }));
       }
       const interval = Math.max(1, Math.ceil(dates.length / 6));
-      dates.forEach((day, i) => { if (i % interval === 0) svg.append(svgNode('text', { x: x(i), y: height - 5, 'text-anchor': 'middle' }, day.slice(5))); });
+      dates.forEach((day, i) => { if (i % interval === 0) svg.append(svgNode('text', { x: x(i), y: height - 6, 'text-anchor': 'middle' }, day.slice(5))); });
+      const previous = svg.chartState?.index;
+      svg.chartState = { dates, series, x, y, top, bottom: height - bottom, width, format, index: dates.length - 1 };
+      if (hoveredChart === svg) showChartPoint(svg, previous ?? dates.length - 1);
+    }
+
+    function attachChartHover(svg) {
+      svg.tabIndex = 0;
+      const nearest = (event) => {
+        const state = svg.chartState; const rect = svg.getBoundingClientRect();
+        const px = (event.clientX - rect.left) * state.width / rect.width;
+        let best = 0;
+        state.dates.forEach((_, i) => { if (Math.abs(state.x(i) - px) < Math.abs(state.x(best) - px)) best = i; });
+        return best;
+      };
+      svg.addEventListener('pointermove', (event) => { if (svg.chartState) showChartPoint(svg, nearest(event), event.clientX); });
+      svg.addEventListener('pointerleave', hideChartTooltip);
+      svg.addEventListener('focus', () => showChartPoint(svg, svg.chartState?.index ?? 0));
+      svg.addEventListener('blur', hideChartTooltip);
+      svg.addEventListener('keydown', (event) => {
+        const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+        if (step && svg.chartState) { event.preventDefault(); showChartPoint(svg, svg.chartState.index + step); }
+      });
     }
 
     function renderCharts(data) {
@@ -920,8 +965,8 @@
       const small = theme.getPropertyValue('--small').trim() || '#72B7F2';
       const strong = theme.getPropertyValue('--strong').trim() || '#F2C85B';
       chart($('cost-chart'), [
-        { name: 'Recorded spend', color: small, values: data.trend.map((day) => day.costUSD) },
-        { name: 'Strong-only estimate', color: strong, values: data.trend.map((day) => day.allStrongCostUSD) },
+        { name: 'Actual', color: small, values: data.trend.map((day) => day.costUSD) },
+        { name: 'If all Strong', color: strong, values: data.trend.map((day) => day.allStrongCostUSD) },
       ], true);
     }
 
@@ -937,7 +982,7 @@
       container.replaceChildren(...cells.map(([key, label, different]) => {
         const count = choices[key];
         const node = el('div', undefined, 'choice-cell' + (different ? ' different' : ''));
-        node.append(el('strong', number(count)), el('div', label), el('div', compared ? `${pct(count / compared)} of ${number(compared)} compared messages` : 'No compared messages yet', 'muted'));
+        node.append(el('strong', number(count)), el('div', label), el('div', compared ? pct(count / compared) : '—', 'muted'));
         return node;
       }));
     }
@@ -947,30 +992,27 @@
       const small = theme.getPropertyValue('--small').trim();
       const strong = theme.getPropertyValue('--strong').trim();
       const savings = data.totals.allStrongCostUSD - data.totals.costUSD;
-      $('overview-spend').textContent = `${money(data.totals.costUSD)} spent · ${money(Math.abs(savings))} ${savings < 0 ? 'above estimate' : 'estimated saving'}`;
+      $('overview-spend').textContent = `${money(data.totals.costUSD)} · ${money(Math.abs(savings))} ${savings < 0 ? 'over' : 'saved'}`;
       const { unpricedRequests, missingAllStrongRequests } = data.coverage;
       $('overview-coverage').textContent = unpricedRequests || missingAllStrongRequests
-        ? `Incomplete pricing: ${number(unpricedRequests)} calls unpriced; ${number(missingAllStrongRequests)} missing comparison costs. Includes selection fees.`
-        : 'All calls priced · includes AI model-selection fees';
+        ? `${number(unpricedRequests)} calls unpriced · ${number(missingAllStrongRequests)} missing estimate`
+        : '';
       const cumulative = (field) => { let sum = 0; return data.trend.map((day) => sum += day[field]); };
       chart($('cumulative-chart'), [
-        { name: 'Cumulative recorded spend', color: small, values: cumulative('costUSD') },
-        { name: 'Cumulative Strong-only estimate', color: strong, values: cumulative('allStrongCostUSD') },
+        { name: 'Actual', color: small, values: cumulative('costUSD') },
+        { name: 'If all Strong', color: strong, values: cumulative('allStrongCostUSD') },
       ], true);
       renderModelLines(data, small, strong);
       const { matching, compared } = data.experiment.agreement;
-      $('overview-choice-summary').textContent = compared
-        ? `Different suggestions on ${number(compared - matching)} of ${number(compared)} compared messages. Highlighted cells show which direction.`
-        : 'No compared messages in this range. Historical calls without both suggestions are excluded.';
+      $('overview-choice-summary').textContent = compared ? `Disagree on ${number(compared - matching)} of ${number(compared)}` : 'No compared messages';
       renderChoiceGrid($('overview-choice-grid'), data.experiment);
     }
 
     function renderModelLines(data, small, strong) {
       chart($('activity-chart'), [
-        { name: 'Small calls', color: small, values: data.trend.map((day) => day.tiers.weak) },
-        { name: 'Strong calls', color: strong, values: data.trend.map((day) => day.tiers.strong) },
+        { name: 'Small', color: small, values: data.trend.map((day) => day.tiers.weak) },
+        { name: 'Strong', color: strong, values: data.trend.map((day) => day.tiers.strong) },
       ], false);
-      $('model-use-summary').textContent = `${number(data.routing.tiers.weak || 0)} Small · ${number(data.routing.tiers.strong || 0)} Strong · ${number(data.routing.tiers.unknown || 0)} unknown calls total. Days without activity are omitted.`;
     }
 
     function renderView(data) {
@@ -1034,6 +1076,8 @@
     navigation.forEach((button) => button.addEventListener('click', () => showView(button.dataset.view)));
     $('session-sort').addEventListener('change', () => { if (latestData) renderSessions(latestData); });
     $('live-window').addEventListener('change', () => { if (latestData && activeView === 'live') renderLiveTimeline(latestData); });
+    ['cumulative-chart', 'activity-chart', 'cost-chart'].forEach((id) => attachChartHover($(id)));
+    window.addEventListener('scroll', hideChartTooltip, true);
     window.addEventListener('resize', () => {
       if (!latestData) return;
       if (activeView === 'live') { renderOverviewGraphs(latestData); renderLiveTimeline(latestData); }

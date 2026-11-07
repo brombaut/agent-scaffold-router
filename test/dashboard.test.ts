@@ -490,6 +490,68 @@ test("live dots show immediate, safely rendered tooltips on hover and focus", as
   expect(html).toContain("if (event.key === 'Escape') hideLiveTooltip()");
 });
 
+test("line charts show every series' value at the hovered or keyboard-selected day", async () => {
+  const html = await Bun.file(new URL("../src/dashboard/index.html", import.meta.url)).text();
+  const functions = html.match(/    function hideChartTooltip\(\) \{[\s\S]*?(?=    function renderCharts\(data\))/)?.[0];
+  expect(functions).toBeDefined();
+  // Execute the production chart functions with a small DOM stand-in.
+  class Node {
+    children: Node[] = [];
+    style: Record<string, string> = {};
+    attrs: Record<string, any> = {};
+    events: Record<string, (event: any) => void> = {};
+    hidden = true;
+    tabIndex = -1;
+    clientWidth = 400;
+    parent: Node | null = null;
+    constructor(public tag = "div", public textContent = "") {}
+    append(...nodes: (Node | string)[]) {
+      for (const n of nodes) { const node = typeof n === "string" ? new Node("#text", n) : n; node.parent = this; this.children.push(node); }
+    }
+    replaceChildren(...nodes: Node[]) { this.children = []; this.append(...nodes); }
+    setAttribute(key: string, value: any) { this.attrs[key] = value; }
+    querySelectorAll(selector: string) { return this.children.filter((c) => selector === ".chart-hover" && c.attrs.class === "chart-hover"); }
+    remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); }
+    getBoundingClientRect() { return { left: 0, top: 100, width: 400, height: 200 }; }
+    addEventListener(name: string, listener: (event: any) => void) { this.events[name] = listener; }
+    text(): string { return [this.textContent, ...this.children.map((c) => c.text())].join(" ").replace(/\s+/g, " ").trim(); }
+  }
+  const svg = new Node("svg");
+  const tooltip = new Node();
+  const el = (tag: string, text?: unknown, cls?: string) => { const n = new Node(tag, text == null ? "" : String(text)); if (cls) n.attrs.class = cls; return n; };
+  const svgNode = (tag: string, attrs: Record<string, unknown>, text?: unknown) => { const n = new Node(tag, text == null ? "" : String(text)); n.attrs = { ...attrs }; return n; };
+  const latestData: { trend: { date: string }[] } = { trend: [{ date: "2026-11-01" }, { date: "2026-11-02" }, { date: "2026-11-03" }] };
+  const ui = new Function("$", "document", "window", "el", "svgNode", "money", "number", "latestData", `
+    let hoveredChart = null;
+    ${functions}
+    return { chart, attachChartHover };
+  `)(() => tooltip, { querySelectorAll: () => svg.querySelectorAll(".chart-hover") }, { innerWidth: 800, innerHeight: 600 },
+    el, svgNode, (n: number) => `$${n.toFixed(2)}`, String, latestData);
+  const key = (k: string) => svg.events.keydown!({ key: k, preventDefault() {} });
+  ui.attachChartHover(svg);
+  ui.chart(svg, [{ name: "Small", color: "blue", values: [1, 5, 2] }, { name: "Strong", color: "gold", values: [3, 0, 7] }], false);
+  expect(svg.tabIndex).toBe(0);
+  expect(tooltip.hidden).toBe(true);
+  svg.events.pointermove!({ clientX: 230 }); // Nearest to the middle day.
+  expect(tooltip.hidden).toBe(false);
+  expect(tooltip.text()).toBe("2026-11-02 Small 5 Strong 0");
+  expect(svg.querySelectorAll(".chart-hover")).toHaveLength(1);
+  key("ArrowRight");
+  expect(tooltip.text()).toBe("2026-11-03 Small 2 Strong 7");
+  key("ArrowRight");
+  expect(tooltip.text()).toContain("2026-11-03"); // Clamped at the last day.
+  ui.chart(svg, [{ name: "Small", color: "blue", values: [1, 5, 9] }, { name: "Strong", color: "gold", values: [3, 0, 7] }], false);
+  expect(tooltip.text()).toBe("2026-11-03 Small 9 Strong 7"); // A refresh keeps the hovered day with new values.
+  expect(svg.querySelectorAll(".chart-hover")).toHaveLength(1);
+  svg.events.pointerleave!({});
+  expect(tooltip.hidden).toBe(true);
+  expect(svg.querySelectorAll(".chart-hover")).toHaveLength(0);
+  latestData.trend = [];
+  ui.chart(svg, [], true);
+  svg.events.pointermove!({ clientX: 10 });
+  expect(tooltip.hidden).toBe(true); // Empty charts have nothing to hover.
+});
+
 test("date filters retain conversation labels but exclude old metrics and messages", async () => {
   const path = join(temporaryDir(), "decisions.jsonl");
   const cfg = { ...DEFAULT_CONFIG, log: { ...DEFAULT_CONFIG.log, path } };
