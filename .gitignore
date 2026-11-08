@@ -1,5 +1,4 @@
 node_modules/
-.gstack/
 *.log
 eval/runs/
 eval/polyglot/
