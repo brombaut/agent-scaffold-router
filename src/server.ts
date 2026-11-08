@@ -76,7 +76,8 @@ export function startServer(cfg: Config, opts: ServerOptions) {
     if (!arm || parseOverride(turn.turnText)) return null;
     const perSession = cfg.policy.granularity === "session";
     const text = perSession ? turn.firstText : turn.turnText;
-    const key = perSession ? turn.sessionKey : `${turn.sessionKey}#${turn.turnIndex}`;
+    // Text hash in the key: compaction shrinks turnIndex back to values earlier turns already used.
+    const key = perSession ? turn.sessionKey : `${turn.sessionKey}#${turn.turnIndex}#${createHash("sha256").update(text).digest("hex").slice(0, 12)}`;
     let pending = classified.get(key);
     const isNew = !pending;
     if (!pending) {

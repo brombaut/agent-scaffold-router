@@ -52,6 +52,14 @@ test("on: one classifier call per turn routes every request in it, and the next 
   expect(asked[1]).toContain("previous turn was handled by the large model");
 });
 
+test("a turn after compaction that reuses an earlier turnIndex still gets its own classification", async () => {
+  const { send, asked } = setup("on", "strong");
+  await send([user("first task")]);
+  const l = await send([user("new task after compaction")]); // same session, same user-message count
+  expect(asked).toEqual(["first task", expect.stringContaining("new task after compaction")]);
+  expect(l).toMatchObject({ classifierCostUSD: 0.002, turnPreview: "new task after compaction" });
+});
+
 test("shadow: logs the classifier's pick but routes by the heuristic", async () => {
   const { send } = setup("shadow", "strong");
   const l = await send([user("show me the readme")]);
